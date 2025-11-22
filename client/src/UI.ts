@@ -10,6 +10,8 @@ export class UI {
   private playButton: HTMLButtonElement;
   private respawnButton: HTMLButtonElement;
   private finalScoreElement: HTMLElement;
+  private connectWalletButton: HTMLButtonElement;
+  private walletStatus: HTMLElement;
 
   constructor() {
     this.startScreen = document.getElementById('startScreen')!;
@@ -21,6 +23,8 @@ export class UI {
     this.playButton = document.getElementById('playButton') as HTMLButtonElement;
     this.respawnButton = document.getElementById('respawnButton') as HTMLButtonElement;
     this.finalScoreElement = document.getElementById('finalScore')!;
+    this.connectWalletButton = document.getElementById('connectWalletButton') as HTMLButtonElement;
+    this.walletStatus = document.getElementById('walletStatus')!;
   }
 
   showStartScreen(): void {
@@ -59,14 +63,20 @@ export class UI {
   updateLeaderboard(state: StateMessage): void {
     this.leaderboardList.innerHTML = '';
     
-    state.leaderboard.forEach(([name, score]: [string, number], index: number) => {
+    state.leaderboard.forEach(([name, score, address]: [string, number, string?], index: number) => {
       const li = document.createElement('li');
+      const displayName = address ? `${name} (${this.shortenAddress(address)})` : name;
       li.innerHTML = `
-        <span class="name">${index + 1}. ${name}</span>
+        <span class="name">${index + 1}. ${displayName}</span>
         <span class="score">${score}</span>
       `;
       this.leaderboardList.appendChild(li);
     });
+  }
+
+  private shortenAddress(address: string): string {
+    if (!address || address.length < 10) return address;
+    return `${address.slice(0, 6)}…${address.slice(-4)}`;
   }
 
   onPlay(callback: (name: string) => void): void {
@@ -88,6 +98,38 @@ export class UI {
       this.hideDeathScreen();
       callback();
     });
+  }
+
+  onConnectWallet(callback: () => Promise<string | null>): void {
+    this.connectWalletButton.addEventListener('click', async () => {
+      this.connectWalletButton.disabled = true;
+      this.walletStatus.textContent = 'Connecting...';
+      this.walletStatus.className = '';
+      
+      const address = await callback();
+      
+      this.connectWalletButton.disabled = false;
+      
+      if (address) {
+        this.setWalletConnected(address);
+      } else {
+        this.walletStatus.textContent = 'Connection failed. Continue as guest.';
+        this.walletStatus.className = 'error';
+      }
+    });
+  }
+
+  setWalletConnected(address: string): void {
+    this.connectWalletButton.textContent = 'Wallet Connected';
+    this.connectWalletButton.disabled = true;
+    this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
+    this.walletStatus.className = 'success';
+  }
+
+  setWalletNotAvailable(): void {
+    this.connectWalletButton.disabled = true;
+    this.walletStatus.textContent = 'No wallet detected. Continue as guest.';
+    this.walletStatus.className = '';
   }
 }
 

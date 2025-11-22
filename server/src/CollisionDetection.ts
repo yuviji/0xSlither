@@ -1,6 +1,11 @@
 import { SnakeEntity } from './Snake';
 import { Pellet, SNAKE_HEAD_RADIUS, COLLISION_DISTANCE } from 'shared';
 
+export interface CollisionResult {
+  victimId: string;
+  killerId: string | null; // null if self-collision or world bounds
+}
+
 export class CollisionDetection {
   static checkPelletCollision(snake: SnakeEntity, pellet: Pellet): boolean {
     const dx = snake.headPosition.x - pellet.x;
@@ -10,11 +15,12 @@ export class CollisionDetection {
     return distance < SNAKE_HEAD_RADIUS + pellet.size;
   }
 
-  static checkSnakeCollisions(snakes: SnakeEntity[]): Set<string> {
-    const deadSnakeIds = new Set<string>();
+  static checkSnakeCollisions(snakes: SnakeEntity[]): CollisionResult[] {
+    const collisions: CollisionResult[] = [];
+    const processedVictims = new Set<string>();
 
     for (const snake of snakes) {
-      if (!snake.alive) continue;
+      if (!snake.alive || processedVictims.has(snake.id)) continue;
 
       // Check collision with all other snakes' body segments
       for (const otherSnake of snakes) {
@@ -37,16 +43,19 @@ export class CollisionDetection {
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < COLLISION_DISTANCE) {
-            deadSnakeIds.add(snake.id);
+            // Determine killer: if self-collision, killer is null
+            const killerId = snake.id === otherSnake.id ? null : otherSnake.id;
+            collisions.push({ victimId: snake.id, killerId });
+            processedVictims.add(snake.id);
             break;
           }
         }
         
-        if (deadSnakeIds.has(snake.id)) break;
+        if (processedVictims.has(snake.id)) break;
       }
     }
 
-    return deadSnakeIds;
+    return collisions;
   }
 
   static checkWorldBounds(snake: SnakeEntity, worldWidth: number, worldHeight: number): boolean {

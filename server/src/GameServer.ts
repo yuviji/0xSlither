@@ -66,12 +66,23 @@ export class GameServer {
 
     // Check snake collisions
     const aliveSnakes = Array.from(this.snakes.values()).filter(s => s.alive);
-    const deadSnakeIds = CollisionDetection.checkSnakeCollisions(aliveSnakes);
+    const collisions = CollisionDetection.checkSnakeCollisions(aliveSnakes);
     
-    for (const snakeId of deadSnakeIds) {
-      const snake = this.snakes.get(snakeId);
-      if (snake) {
-        snake.kill();
+    for (const collision of collisions) {
+      const victim = this.snakes.get(collision.victimId);
+      if (victim && victim.alive) {
+        const victimScore = victim.getScore();
+        victim.kill();
+        
+        // If killed by another snake (not self-collision), transfer points
+        if (collision.killerId && collision.killerId !== collision.victimId) {
+          const killer = this.snakes.get(collision.killerId);
+          if (killer && killer.alive) {
+            // Killer gains the victim's score
+            killer.grow(victimScore);
+            console.log(`${killer.name} ate ${victim.name} and gained ${victimScore} points!`);
+          }
+        }
       }
     }
 
@@ -83,7 +94,7 @@ export class GameServer {
     }
   }
 
-  addSnake(id: string, name: string): SnakeEntity {
+  addSnake(id: string, name: string, address?: string): SnakeEntity {
     // Generate random spawn position (not too close to edges)
     const margin = 200;
     const x = margin + Math.random() * (WORLD_WIDTH - 2 * margin);
@@ -93,10 +104,11 @@ export class GameServer {
     const hue = parseInt(id.slice(-6), 36) % 360;
     const color = `hsl(${hue}, 70%, 60%)`;
     
-    const snake = new SnakeEntity(id, name, x, y, color);
+    const snake = new SnakeEntity(id, name, x, y, color, address);
     this.snakes.set(id, snake);
     
-    console.log(`Snake ${name} (${id}) spawned at (${x.toFixed(0)}, ${y.toFixed(0)})`);
+    const addressLog = address ? ` wallet: ${address}` : '';
+    console.log(`Snake ${name} (${id})${addressLog} spawned at (${x.toFixed(0)}, ${y.toFixed(0)})`);
     
     return snake;
   }
@@ -123,6 +135,7 @@ export class GameServer {
       .map(snake => ({
         id: snake.id,
         name: snake.name,
+        address: snake.address,
         head: [snake.headPosition.x, snake.headPosition.y] as [number, number],
         angle: snake.angle,
         segments: snake.segments.map(seg => [seg.x, seg.y] as [number, number]),
@@ -140,7 +153,7 @@ export class GameServer {
       tick: this.tickCount,
       snakes,
       pellets,
-      leaderboard: leaderboard.map(entry => [entry.name, entry.score] as [string, number]),
+      leaderboard: leaderboard.map(entry => [entry.name, entry.score, entry.address] as [string, number, string?]),
     };
   }
 

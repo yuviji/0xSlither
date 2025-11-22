@@ -16,6 +16,7 @@ export enum MessageType {
 export interface JoinMessage {
   type: MessageType.JOIN;
   name: string;
+  address?: string; // Optional EVM wallet address
 }
 
 export interface InputMessage {
@@ -54,7 +55,8 @@ export type ServerMessage = StateMessage | DeadMessage | PongMessage;
 
 // Type guards
 export function isJoinMessage(msg: any): msg is JoinMessage {
-  return msg.type === MessageType.JOIN && typeof msg.name === 'string';
+  return msg.type === MessageType.JOIN && typeof msg.name === 'string' &&
+    (msg.address === undefined || typeof msg.address === 'string');
 }
 
 export function isInputMessage(msg: any): msg is InputMessage {

@@ -17,6 +17,7 @@ class GameClient {
   private lastInputTime = 0;
   private inputThrottle = 50; // Send input at most every 50ms
   private animationFrameId: number | null = null;
+  private walletAddress: string | null = null;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -27,6 +28,17 @@ class GameClient {
 
     this.setupEventHandlers();
     this.ui.showStartScreen();
+    this.checkWalletAvailability();
+  }
+
+  private checkWalletAvailability(): void {
+    if (!this.isWalletAvailable()) {
+      this.ui.setWalletNotAvailable();
+    }
+  }
+
+  private isWalletAvailable(): boolean {
+    return typeof (window as any).ethereum !== 'undefined';
   }
 
   private setupEventHandlers(): void {
@@ -53,10 +65,37 @@ class GameClient {
       const name = (document.getElementById('nameInput') as HTMLInputElement).value.trim() || 'Anonymous';
       this.startPlaying(name);
     });
+
+    this.ui.onConnectWallet(async () => {
+      return await this.connectWallet();
+    });
+  }
+
+  private async connectWallet(): Promise<string | null> {
+    if (!this.isWalletAvailable()) {
+      console.log('No wallet detected');
+      return null;
+    }
+
+    try {
+      const ethereum = (window as any).ethereum;
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      
+      if (accounts && accounts.length > 0) {
+        this.walletAddress = accounts[0];
+        console.log('Wallet connected:', this.walletAddress);
+        return this.walletAddress;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+      return null;
+    }
   }
 
   private startPlaying(name: string): void {
-    this.game.join(name);
+    this.game.join(name, this.walletAddress || undefined);
     this.ui.hideStartScreen();
     this.ui.hideDeathScreen();
     this.isPlaying = true;

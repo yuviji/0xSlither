@@ -81,6 +81,36 @@
       transform: scale(0.95);
     }
 
+    #walletSection {
+      margin-bottom: 20px;
+    }
+
+    #connectWalletButton {
+      padding: 10px 30px;
+      font-size: 16px;
+      background: #9B59B6;
+      margin-bottom: 10px;
+    }
+
+    #connectWalletButton:hover {
+      background: #8E44AD;
+    }
+
+    #walletStatus {
+      font-size: 14px;
+      color: #4ECDC4;
+      margin-top: 5px;
+      min-height: 20px;
+    }
+
+    #walletStatus.error {
+      color: #ff6b6b;
+    }
+
+    #walletStatus.success {
+      color: #4ECDC4;
+    }
+
     #leaderboard {
       position: absolute;
       top: 20px;
@@ -169,6 +199,10 @@
   <div id="ui">
     <div id="startScreen">
       <h1>Slither.io</h1>
+      <div id="walletSection">
+        <button id="connectWalletButton">Connect Wallet</button>
+        <div id="walletStatus"></div>
+      </div>
       <input type="text" id="nameInput" placeholder="Enter your name" maxlength="15" />
       <br>
       <button id="playButton">Play</button>

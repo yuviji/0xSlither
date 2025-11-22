@@ -12,6 +12,7 @@ export interface SnakeSegment extends Position {
 export interface Snake {
   id: string;
   name: string;
+  address?: string; // Optional EVM wallet address
   headPosition: Position;
   angle: number;
   segments: SnakeSegment[];
@@ -31,12 +32,14 @@ export interface Pellet {
 export interface LeaderboardEntry {
   name: string;
   score: number;
+  address?: string; // Optional EVM wallet address
 }
 
 // Serialized types for network transmission (more compact)
 export type SerializedSnake = {
   id: string;
   name: string;
+  address?: string; // Optional EVM wallet address
   head: [number, number];
   angle: number;
   segments: [number, number][];
@@ -45,5 +48,5 @@ export type SerializedSnake = {
 
 export type SerializedPellet = [number, number, number, string]; // [x, y, size, color]
 
-export type SerializedLeaderboard = [string, number][]; // [name, score]
+export type SerializedLeaderboard = [string, number, string?][]; // [name, score, address?]
 

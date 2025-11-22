@@ -73,7 +73,7 @@ class WebSocketGameServer {
 
   private handleMessage(player: Player, message: ClientMessage): void {
     if (isJoinMessage(message)) {
-      this.handleJoin(player, message.name);
+      this.handleJoin(player, message.name, message.address);
     } else if (isInputMessage(message)) {
       this.handleInput(player, message.targetAngle);
     } else if (isPingMessage(message)) {
@@ -81,17 +81,18 @@ class WebSocketGameServer {
     }
   }
 
-  private handleJoin(player: Player, name: string): void {
+  private handleJoin(player: Player, name: string, address?: string): void {
     // Remove old snake if exists
     if (player.snakeId) {
       this.gameServer.removeSnake(player.snakeId);
     }
 
-    // Create new snake
-    const snake = this.gameServer.addSnake(player.id, name);
+    // Create new snake with optional wallet address
+    const snake = this.gameServer.addSnake(player.id, name, address);
     player.snakeId = snake.id;
 
-    console.log(`Player ${player.id} joined as "${name}"`);
+    const addressLog = address ? ` with wallet ${address}` : ' as guest';
+    console.log(`Player ${player.id} joined as "${name}"${addressLog}`);
 
     // Send initial state with player ID
     const state = this.gameServer.getGameState();

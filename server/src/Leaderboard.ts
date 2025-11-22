@@ -8,6 +8,7 @@ export class Leaderboard {
       .map(snake => ({
         name: snake.name,
         score: snake.getScore(),
+        address: snake.address,
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, LEADERBOARD_SIZE);

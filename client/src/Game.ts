@@ -72,16 +72,18 @@ export class Game {
     }
   }
 
-  join(name: string): void {
+  join(name: string, address?: string): void {
     if (!this.connected || !this.ws) return;
 
     const message: JoinMessage = {
       type: MessageType.JOIN,
       name,
+      address,
     };
 
     this.ws.send(JSON.stringify(message));
-    console.log('Sent JOIN message with name:', name);
+    const addressLog = address ? ` and wallet ${address}` : '';
+    console.log(`Sent JOIN message with name: ${name}${addressLog}`);
   }
 
   sendInput(targetAngle: number): void {

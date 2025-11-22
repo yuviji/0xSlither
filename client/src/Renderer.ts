@@ -233,14 +233,24 @@ export class Renderer {
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'bottom';
 
+    // Display name with address if available
+    const displayName = snake.address 
+      ? `${snake.name} (${this.shortenAddress(snake.address)})`
+      : snake.name;
+
     // Background
-    const textWidth = this.ctx.measureText(snake.name).width;
+    const textWidth = this.ctx.measureText(displayName).width;
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     this.ctx.fillRect(screenPos.x - textWidth / 2 - 4, screenPos.y - SNAKE_HEAD_RADIUS - 24, textWidth + 8, 18);
 
     // Text
     this.ctx.fillStyle = 'white';
-    this.ctx.fillText(snake.name, screenPos.x, screenPos.y - SNAKE_HEAD_RADIUS - 8);
+    this.ctx.fillText(displayName, screenPos.x, screenPos.y - SNAKE_HEAD_RADIUS - 8);
+  }
+
+  private shortenAddress(address: string): string {
+    if (!address || address.length < 10) return address;
+    return `${address.slice(0, 6)}…${address.slice(-4)}`;
   }
 
   private lightenColor(color: string, factor: number): string {

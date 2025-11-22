@@ -15,6 +15,7 @@ import {
 export class SnakeEntity implements Snake {
   id: string;
   name: string;
+  address?: string; // Optional EVM wallet address
   headPosition: Position;
   angle: number;
   segments: SnakeSegment[];
@@ -26,9 +27,10 @@ export class SnakeEntity implements Snake {
   // Track position history for body segments
   private positionHistory: Position[] = [];
 
-  constructor(id: string, name: string, x: number, y: number, color: string) {
+  constructor(id: string, name: string, x: number, y: number, color: string, address?: string) {
     this.id = id;
     this.name = name;
+    this.address = address;
     this.headPosition = { x, y };
     this.angle = Math.random() * Math.PI * 2;
     this.targetAngle = this.angle;
