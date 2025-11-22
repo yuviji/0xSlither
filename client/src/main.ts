@@ -95,12 +95,8 @@ class GameClient {
     const state = this.game.getCurrentState();
     if (!state) return;
 
-    // Calculate interpolation alpha (for smooth rendering between server ticks)
-    const timeSinceLastUpdate = Date.now() % TICK_INTERVAL;
-    const alpha = timeSinceLastUpdate / TICK_INTERVAL;
-
     // Get interpolated state for smoother visuals
-    const interpolatedState = this.game.getInterpolatedState(alpha);
+    const interpolatedState = this.game.getInterpolatedState();
     if (interpolatedState) {
       this.renderer.render(interpolatedState, this.game.getPlayerId());
     } else {

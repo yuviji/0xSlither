@@ -5,7 +5,7 @@ export class Camera {
   y = 0;
   private targetX = 0;
   private targetY = 0;
-  private smoothing = 0.1;
+  private smoothing = 0.2;
 
   setTarget(target: Position): void {
     this.targetX = target.x;

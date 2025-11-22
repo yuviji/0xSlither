@@ -14,6 +14,7 @@ export class Game {
   private playerId: string | null = null;
   private currentState: StateMessage | null = null;
   private previousState: StateMessage | null = null;
+  private lastUpdateTime = 0;
   private onStateUpdateCallback: ((state: StateMessage) => void) | null = null;
   private onDeadCallback: ((score: number) => void) | null = null;
   private onConnectedCallback: (() => void) | null = null;
@@ -52,6 +53,7 @@ export class Game {
     if (message.type === MessageType.STATE) {
       this.previousState = this.currentState;
       this.currentState = message;
+      this.lastUpdateTime = Date.now();
 
       if (message.yourId) {
         this.playerId = message.yourId;
@@ -105,9 +107,15 @@ export class Game {
     this.onConnectedCallback = callback;
   }
 
-  getInterpolatedState(alpha: number): StateMessage | null {
+  getInterpolatedState(): StateMessage | null {
     if (!this.currentState) return null;
-    if (!this.previousState || alpha >= 1) return this.currentState;
+    if (!this.previousState) return this.currentState;
+
+    // Calculate time-based interpolation
+    const timeSinceUpdate = Date.now() - this.lastUpdateTime;
+    const alpha = Math.min(timeSinceUpdate / 50, 1); // 50ms = TICK_INTERVAL
+
+    if (alpha >= 1) return this.currentState;
 
     // Create interpolated state
     const interpolated: StateMessage = {

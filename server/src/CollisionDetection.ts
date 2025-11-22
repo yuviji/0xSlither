@@ -50,12 +50,12 @@ export class CollisionDetection {
   }
 
   static checkWorldBounds(snake: SnakeEntity, worldWidth: number, worldHeight: number): boolean {
-    const margin = 50; // Kill if too far outside
+    // Die when the head (with its radius) touches or crosses the boundary
     return (
-      snake.headPosition.x < -margin ||
-      snake.headPosition.x > worldWidth + margin ||
-      snake.headPosition.y < -margin ||
-      snake.headPosition.y > worldHeight + margin
+      snake.headPosition.x - SNAKE_HEAD_RADIUS < 0 ||
+      snake.headPosition.x + SNAKE_HEAD_RADIUS > worldWidth ||
+      snake.headPosition.y - SNAKE_HEAD_RADIUS < 0 ||
+      snake.headPosition.y + SNAKE_HEAD_RADIUS > worldHeight
     );
   }
 }

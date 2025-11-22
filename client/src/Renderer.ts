@@ -1,4 +1,4 @@
-import { StateMessage, SerializedSnake, SNAKE_HEAD_RADIUS, SNAKE_SEGMENT_RADIUS } from 'shared';
+import { StateMessage, SerializedSnake, SNAKE_HEAD_RADIUS, SNAKE_SEGMENT_RADIUS, WORLD_WIDTH, WORLD_HEIGHT } from 'shared';
 import { Camera } from './Camera';
 
 export class Renderer {
@@ -32,6 +32,9 @@ export class Renderer {
     }
     this.camera.update();
 
+    // Draw world boundaries
+    this.drawBoundaries();
+
     // Draw grid
     this.drawGrid();
 
@@ -51,6 +54,38 @@ export class Renderer {
     // Draw snake names
     for (const snake of state.snakes) {
       this.drawSnakeName(snake);
+    }
+  }
+
+  private drawBoundaries(): void {
+    // Draw boundary box
+    const topLeft = this.camera.worldToScreen(0, 0, this.canvas.width, this.canvas.height);
+    const bottomRight = this.camera.worldToScreen(WORLD_WIDTH, WORLD_HEIGHT, this.canvas.width, this.canvas.height);
+
+    this.ctx.strokeStyle = '#ff6b6b';
+    this.ctx.lineWidth = 4;
+    this.ctx.setLineDash([20, 10]);
+    this.ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    this.ctx.setLineDash([]);
+
+    // Add a semi-transparent overlay outside boundaries
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    
+    // Top
+    if (topLeft.y > 0) {
+      this.ctx.fillRect(0, 0, this.canvas.width, topLeft.y);
+    }
+    // Bottom
+    if (bottomRight.y < this.canvas.height) {
+      this.ctx.fillRect(0, bottomRight.y, this.canvas.width, this.canvas.height - bottomRight.y);
+    }
+    // Left
+    if (topLeft.x > 0) {
+      this.ctx.fillRect(0, 0, topLeft.x, this.canvas.height);
+    }
+    // Right
+    if (bottomRight.x < this.canvas.width) {
+      this.ctx.fillRect(bottomRight.x, 0, this.canvas.width - bottomRight.x, this.canvas.height);
     }
   }
 
