@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slither.io Core</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      background: #1a1a2e;
+      color: white;
+    }
+
+    #gameCanvas {
+      display: block;
+      background: #0f3460;
+    }
+
+    #ui {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #startScreen, #deathScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 40px;
+      border-radius: 10px;
+      pointer-events: auto;
+    }
+
+    #startScreen h1, #deathScreen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #4ECDC4;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    #startScreen input {
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      width: 300px;
+    }
+
+    #startScreen button, #deathScreen button {
+      padding: 12px 40px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      background: #4ECDC4;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    #startScreen button:hover, #deathScreen button:hover {
+      background: #45B7D1;
+      transform: scale(1.05);
+    }
+
+    #startScreen button:active, #deathScreen button:active {
+      transform: scale(0.95);
+    }
+
+    #leaderboard {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px 20px;
+      border-radius: 8px;
+      min-width: 200px;
+      border: 2px solid rgba(78, 205, 196, 0.3);
+      backdrop-filter: blur(5px);
+    }
+
+    #leaderboard h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #4ECDC4;
+    }
+
+    #leaderboard ol {
+      list-style: none;
+      padding: 0;
+    }
+
+    #leaderboard li {
+      padding: 5px 0;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #leaderboard li:last-child {
+      border-bottom: none;
+    }
+
+    #leaderboard li:first-child .name {
+      color: #FFD700;
+    }
+
+    #leaderboard li:nth-child(2) .name {
+      color: #C0C0C0;
+    }
+
+    #leaderboard li:nth-child(3) .name {
+      color: #CD7F32;
+    }
+
+    #leaderboard .name {
+      font-weight: bold;
+    }
+
+    #leaderboard .score {
+      color: #4ECDC4;
+    }
+
+    #connectionStatus {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #deathScreen p {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    #deathScreen .score {
+      color: #4ECDC4;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  
+  <div id="ui">
+    <div id="startScreen">
+      <h1>Slither.io</h1>
+      <input type="text" id="nameInput" placeholder="Enter your name" maxlength="15" />
+      <br>
+      <button id="playButton">Play</button>
+    </div>
+
+    <div id="deathScreen" class="hidden">
+      <h1>You Died!</h1>
+      <p>Final Score: <span class="score" id="finalScore">0</span></p>
+      <button id="respawnButton">Play Again</button>
+    </div>
+
+    <div id="connectionStatus">Connecting...</div>
+
+    <div id="leaderboard" class="hidden">
+      <h2>Leaderboard</h2>
+      <ol id="leaderboardList"></ol>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
+

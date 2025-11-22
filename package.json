@@ -1,0 +1,16 @@
+{
+  "name": "slither-core",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client",
+    "shared"
+  ],
+  "scripts": {
+    "server": "pnpm run dev --workspace=server",
+    "client": "pnpm run dev --workspace=client",
+    "dev": "pnpm run server & pnpm run client"
+  }
+}
+
