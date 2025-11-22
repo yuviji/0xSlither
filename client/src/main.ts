@@ -65,6 +65,11 @@ class GameClient {
 
     this.game.onStateUpdate((state) => {
       this.ui.updateLeaderboard(state);
+      // Update match ID from server if provided (only once)
+      if (state.matchId && state.matchId !== CURRENT_MATCH_ID) {
+        CURRENT_MATCH_ID = state.matchId;
+        console.log('Match ID updated from server:', CURRENT_MATCH_ID);
+      }
     });
 
     this.game.onDead((score) => {
@@ -72,6 +77,7 @@ class GameClient {
       this.isPlaying = false;
       this.isSpectating = true;
       this.ui.showDeathScreen(score);
+      this.ui.hideGameControls(); // Hide tap out button after death
       this.stopStatsUpdates();
     });
 
@@ -84,8 +90,13 @@ class GameClient {
     });
 
     this.ui.onRespawn(async () => {
+      // Reset state and return to home page for a clean restart
+      this.isPlaying = false;
+      this.isSpectating = false;
+      this.ui.hideDeathScreen();
       this.ui.resetStakeState();
-      await this.handleStake();
+      this.ui.showStartScreen();
+      this.stopStatsUpdates();
     });
 
     this.ui.onConnectWallet(async () => {

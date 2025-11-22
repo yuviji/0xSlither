@@ -46,6 +46,7 @@ export interface StateMessage {
   pellets: SerializedPellet[];
   leaderboard: SerializedLeaderboard;
   yourId?: string; // Only sent to new players
+  matchId?: string; // Match ID for blockchain operations
 }
 
 export interface DeadMessage {

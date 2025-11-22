@@ -115,7 +115,6 @@ export class UI {
 
   onRespawn(callback: () => void): void {
     this.respawnButton.addEventListener('click', () => {
-      this.hideDeathScreen();
       callback();
     });
   }

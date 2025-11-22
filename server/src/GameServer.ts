@@ -104,10 +104,13 @@ export class GameServer {
             this.blockchain.isActive(this.matchId, victim.address)
               .then(isActive => {
                 if (isActive && this.blockchain) {
+                  console.log(`Reporting self-collision death for ${victim.address} to blockchain`);
                   return this.blockchain.reportSelfDeath(this.matchId as string, victim.address as string);
+                } else {
+                  console.log(`Player ${victim.address} not active in match, skipping self-death report`);
                 }
               })
-              .catch(err => console.error('Error reporting self death to blockchain:', err));
+              .catch(err => console.error('Error checking active status or reporting self death:', err));
           }
         }
       }
@@ -125,10 +128,13 @@ export class GameServer {
           this.blockchain.isActive(this.matchId, snake.address)
             .then(isActive => {
               if (isActive && this.blockchain && snake.address) {
+                console.log(`Reporting wall collision death for ${snake.address} to blockchain`);
                 return this.blockchain.reportSelfDeath(this.matchId as string, snake.address as string);
+              } else {
+                console.log(`Player ${snake.address} not active in match, skipping wall-death report`);
               }
             })
-            .catch(err => console.error('Error reporting wall death to blockchain:', err));
+            .catch(err => console.error('Error checking active status or reporting wall death:', err));
         }
       }
     }
@@ -194,6 +200,7 @@ export class GameServer {
       snakes,
       pellets,
       leaderboard: leaderboard.map(entry => [entry.name, entry.score, entry.address] as [string, number, string?]),
+      matchId: this.matchId || undefined,
     };
   }
 
