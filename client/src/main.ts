@@ -6,7 +6,7 @@ import { WalletService } from './WalletService';
 import { TICK_INTERVAL, MessageType, TapOutMessage } from 'shared';
 
 // WebSocket server URL (adjust for production)
-const WS_URL = `ws://${window.location.hostname}:8080`;
+const WS_URL = `ws://${import.meta.env.VITE_SERVER_URL}:8080`;
 
 // Contract addresses (configure these after deployment)
 const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
