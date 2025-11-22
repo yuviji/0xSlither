@@ -1,16 +1,8 @@
 import { ethers } from 'ethers';
 
 // Contract ABIs (minimal, only what we need)
-const ERC20_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function allowance(address owner, address spender) view returns (uint256)',
-  'function approve(address spender, uint256 amount) returns (bool)',
-  'function symbol() view returns (string)',
-  'function decimals() view returns (uint8)',
-];
-
 const STAKE_ARENA_ABI = [
-  'function enterMatch(bytes32 matchId, uint256 amount) external',
+  'function enterMatch(bytes32 matchId) external payable',
   'function tapOut(bytes32 matchId) external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
   'function bestScore(address player) external view returns (uint256)',
@@ -27,7 +19,6 @@ export class WalletService {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.Signer | null = null;
   private address: string | null = null;
-  private gameToken: ethers.Contract | null = null;
   private stakeArena: ethers.Contract | null = null;
 
   async connectWallet(): Promise<string | null> {
@@ -61,7 +52,7 @@ export class WalletService {
           if (switchError.code === 4902) {
             await this.provider.send('wallet_addEthereumChain', [{
               chainId: `0x${sagaChainId.toString(16)}`,
-              chainName: '0xSlither Chainlet',
+              chainName: '0xSlither Saga Chainlet',
               nativeCurrency: {
                 name: 'SSS',
                 symbol: 'SSS',
@@ -77,6 +68,7 @@ export class WalletService {
       }
 
       console.log('Wallet connected:', this.address);
+      console.log('Using native SSS token');
       return this.address;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
@@ -84,49 +76,28 @@ export class WalletService {
     }
   }
 
-  initializeContracts(gameTokenAddress: string, stakeArenaAddress: string): void {
+  initializeContracts(stakeArenaAddress: string): void {
     if (!this.signer) {
       throw new Error('Wallet not connected');
     }
 
-    this.gameToken = new ethers.Contract(gameTokenAddress, ERC20_ABI, this.signer);
     this.stakeArena = new ethers.Contract(stakeArenaAddress, STAKE_ARENA_ABI, this.signer);
     
     console.log('Contracts initialized');
-    console.log('GameToken:', gameTokenAddress);
     console.log('StakeArena:', stakeArenaAddress);
+    console.log('Using native SSS token (no approval needed)');
   }
 
   async getTokenBalance(): Promise<string> {
-    if (!this.gameToken || !this.address) return '0';
+    if (!this.address || !this.provider) return '0';
     
     try {
-      const balance: bigint = await this.gameToken.balanceOf(this.address);
+      // Get native SSS balance
+      const balance: bigint = await this.provider.getBalance(this.address);
       return ethers.formatEther(balance);
     } catch (error) {
-      console.error('Error getting token balance:', error);
+      console.error('Error getting SSS balance:', error);
       return '0';
-    }
-  }
-
-  async approveToken(amount: string): Promise<boolean> {
-    if (!this.gameToken || !this.stakeArena) {
-      throw new Error('Contracts not initialized');
-    }
-
-    try {
-      const amountWei = ethers.parseEther(amount);
-      const stakeArenaAddress = await this.stakeArena.getAddress();
-      
-      console.log(`Approving ${amount} tokens...`);
-      const tx = await this.gameToken.approve(stakeArenaAddress, amountWei);
-      await tx.wait();
-      
-      console.log('Token approval confirmed');
-      return true;
-    } catch (error) {
-      console.error('Error approving tokens:', error);
-      return false;
     }
   }
 
@@ -138,8 +109,9 @@ export class WalletService {
     try {
       const amountWei = ethers.parseEther(amount);
       
-      console.log(`Entering match ${matchId} with ${amount} tokens...`);
-      const tx = await this.stakeArena.enterMatch(matchId, amountWei);
+      console.log(`Entering match ${matchId} with ${amount} SSS...`);
+      // Send SSS with the transaction (no approval needed!)
+      const tx = await this.stakeArena.enterMatch(matchId, { value: amountWei });
       await tx.wait();
       
       console.log('Successfully entered match');

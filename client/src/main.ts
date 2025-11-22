@@ -9,9 +9,8 @@ import { TICK_INTERVAL, MessageType, TapOutMessage } from 'shared';
 const WS_URL = `ws://${window.location.hostname}:8080`;
 
 // Contract addresses (configure these after deployment)
-const GAME_TOKEN_ADDRESS = import.meta.env.VITE_GAME_TOKEN_ADDRESS || '';
-const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS || '';
-const BLOCKCHAIN_ENABLED = GAME_TOKEN_ADDRESS && STAKE_ARENA_ADDRESS;
+const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
+const BLOCKCHAIN_ENABLED = import.meta.env.VITE_BLOCKCHAIN_ENABLED === 'true';
 
 // Match ID (will be provided by server or generated)
 let CURRENT_MATCH_ID = `match-${Date.now()}`;
@@ -39,9 +38,9 @@ class GameClient {
 
     if (BLOCKCHAIN_ENABLED) {
       this.wallet = new WalletService();
-      console.log('🔗 Blockchain integration enabled');
+      console.log('🔗 Blockchain integration enabled (Native SSS)');
     } else {
-      console.log('ℹ️  Blockchain integration disabled (configure contract addresses)');
+      console.log('ℹ️  Blockchain integration disabled (set VITE_STAKE_ARENA_ADDRESS)');
     }
 
     this.setupEventHandlers();
@@ -105,7 +104,7 @@ class GameClient {
       
       if (this.walletAddress && BLOCKCHAIN_ENABLED) {
         // Initialize contracts
-        this.wallet.initializeContracts(GAME_TOKEN_ADDRESS, STAKE_ARENA_ADDRESS);
+        this.wallet.initializeContracts(STAKE_ARENA_ADDRESS);
         
         // Update balance
         const balance = await this.wallet.getTokenBalance();
@@ -132,20 +131,10 @@ class GameClient {
       }
 
       try {
-        console.log(`Staking ${stakeAmount} SLTH...`);
-        this.ui.updateConnectionStatus('Approving tokens...');
-        
-        // Approve tokens
-        const approved = await this.wallet.approveToken(stakeAmount);
-        if (!approved) {
-          alert('Token approval failed');
-          this.ui.updateConnectionStatus('Connected');
-          return;
-        }
-
+        console.log(`Staking ${stakeAmount} SSS...`);
         this.ui.updateConnectionStatus('Entering match...');
         
-        // Enter match
+        // Enter match (no approval needed for native token!)
         const entered = await this.wallet.enterMatch(CURRENT_MATCH_ID, stakeAmount);
         if (!entered) {
           alert('Failed to enter match');
@@ -294,8 +283,8 @@ new GameClient();
 console.log('%c0xSlither Game Started!', 'color: #9B59B6; font-size: 20px; font-weight: bold;');
 console.log('Controls: Move your mouse to control your snake');
 if (BLOCKCHAIN_ENABLED) {
-  console.log('🔗 Blockchain features enabled');
+  console.log('🔗 Blockchain features enabled (Native SSS token)');
 } else {
-  console.log('ℹ️  Configure VITE_GAME_TOKEN_ADDRESS and VITE_STAKE_ARENA_ADDRESS to enable blockchain');
+  console.log('ℹ️  Set VITE_STAKE_ARENA_ADDRESS to enable blockchain features');
 }
 

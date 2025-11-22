@@ -8,3 +8,4 @@ dist/
 shared/**/*.js
 !shared/**/*.config.js
 
+*.env

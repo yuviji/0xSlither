@@ -14,7 +14,7 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
 - **Responsive Camera**: Follows your snake smoothly with easing
 
 ### ⛓️ Blockchain Economy (NEW!)
-- **Stake-to-Enter**: Players stake SLTH tokens to join matches
+- **Stake-to-Enter**: Players stake SSS tokens to join matches
 - **Loot-on-Eat**: Winners receive 100% of eaten players' stakes on-chain
 - **Tap-Out Anytime**: Exit and withdraw your current stake
 - **On-Chain Leaderboard**: Top 10 players tracked permanently
@@ -62,12 +62,11 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
 
 /contracts       # Smart contracts (NEW!)
   /contracts
-    GameToken.sol      # ERC20 token (SLTH)
-    StakeArena.sol     # Main game contract
+    StakeArena.sol     # Main game contract (uses native SSS)
   /scripts
     deploy.ts          # Deployment script
     updateServer.ts    # Authorize server
-    mintTokens.ts      # Mint test tokens
+    checkBalance.ts    # Check SSS balance
     getLeaderboard.ts  # Query on-chain data
 
 /shared          # Shared types and protocol
@@ -105,11 +104,19 @@ To enable the full on-chain economy:
 cd contracts && pnpm run deploy
 
 # 2. Configure server
-cd ../server && echo "BLOCKCHAIN_ENABLED=true" > .env
-# (add contract addresses)
+cd ../server
+cat > .env << EOF
+BLOCKCHAIN_ENABLED=true
+SERVER_PRIVATE_KEY=0x...
+STAKE_ARENA_ADDRESS=0x...
+EOF
 
 # 3. Configure client
-cd ../client && echo "VITE_GAME_TOKEN_ADDRESS=..." > .env
+cd ../client
+cat > .env << EOF
+VITE_BLOCKCHAIN_ENABLED=true
+VITE_STAKE_ARENA_ADDRESS=0x...
+EOF
 
 # 4. Start everything
 cd .. && pnpm run dev

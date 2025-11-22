@@ -7,15 +7,15 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 1000,
       },
     },
   },
   networks: {
     saga: {
-      url: "https://slither-2763767854157000-1.jsonrpc.sagarpc.io",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 2763767854157000,
+      url: process.env.SAGA_RPC_URL as string,
+      accounts: [process.env.PRIVATE_KEY as string],
+      chainId: parseInt(process.env.CHAIN_ID as string),
     },
   },
   paths: {

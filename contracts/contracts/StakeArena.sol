@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title StakeArena
- * @dev Main game contract handling stakes, loot transfers, and leaderboards
+ * @dev Main game contract using native SSS token for staking
  */
 contract StakeArena is Ownable, ReentrancyGuard {
-    IERC20 public immutable gameToken;
     address public authorizedServer;
 
     // Match state
@@ -61,39 +59,30 @@ contract StakeArena is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _gameToken, address _authorizedServer) Ownable(msg.sender) {
-        require(_gameToken != address(0), "Invalid token address");
+    constructor(address _authorizedServer) Ownable(msg.sender) {
         require(_authorizedServer != address(0), "Invalid server address");
-        gameToken = IERC20(_gameToken);
         authorizedServer = _authorizedServer;
     }
 
     /**
-     * @dev Player stakes tokens to enter a match
+     * @dev Player stakes native SSS to enter a match
      * @param matchId Unique match identifier
-     * @param amount Amount of tokens to stake
      */
-    function enterMatch(bytes32 matchId, uint256 amount) external nonReentrant {
-        require(amount > 0, "Amount must be > 0");
+    function enterMatch(bytes32 matchId) external payable nonReentrant {
+        require(msg.value > 0, "Amount must be > 0");
         require(!activeInMatch[matchId][msg.sender], "Already in match");
         require(!matches[matchId].finalized, "Match already finalized");
 
-        // Transfer tokens from player to contract
-        require(
-            gameToken.transferFrom(msg.sender, address(this), amount),
-            "Transfer failed"
-        );
-
-        stakeBalance[matchId][msg.sender] = amount;
+        stakeBalance[matchId][msg.sender] = msg.value;
         activeInMatch[matchId][msg.sender] = true;
         
         // Initialize match if first entry
         if (matches[matchId].startTime == 0) {
             matches[matchId].startTime = block.timestamp;
         }
-        matches[matchId].totalStaked += amount;
+        matches[matchId].totalStaked += msg.value;
 
-        emit Entered(matchId, msg.sender, amount);
+        emit Entered(matchId, msg.sender, msg.value);
     }
 
     /**
@@ -136,10 +125,9 @@ contract StakeArena is Ownable, ReentrancyGuard {
         stakeBalance[matchId][msg.sender] = 0;
         activeInMatch[matchId][msg.sender] = false;
 
-        require(
-            gameToken.transfer(msg.sender, withdrawAmount),
-            "Transfer failed"
-        );
+        // Send SSS back to player
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        require(success, "Transfer failed");
 
         emit TappedOut(matchId, msg.sender, withdrawAmount);
     }
@@ -197,10 +185,8 @@ contract StakeArena is Ownable, ReentrancyGuard {
             uint256 remainingStake = stakeBalance[matchId][player];
             if (remainingStake > 0) {
                 stakeBalance[matchId][player] = 0;
-                require(
-                    gameToken.transfer(player, remainingStake),
-                    "Transfer failed"
-                );
+                (bool success, ) = payable(player).call{value: remainingStake}("");
+                require(success, "Transfer failed");
             }
 
             activeInMatch[matchId][player] = false;
@@ -208,6 +194,11 @@ contract StakeArena is Ownable, ReentrancyGuard {
 
         emit MatchFinalized(matchId, winner, block.timestamp);
     }
+
+    /**
+     * @dev Allow contract to receive SSS
+     */
+    receive() external payable {}
 
     /**
      * @dev Internal function to update leaderboard

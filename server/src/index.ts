@@ -43,16 +43,16 @@ class WebSocketGameServer {
     // Initialize blockchain if enabled
     if (BLOCKCHAIN_ENABLED) {
       try {
-        const rpcUrl = process.env.SAGA_RPC_URL || 'https://slither-2763767854157000-1.jsonrpc.sagarpc.io';
-        const privateKey = process.env.SERVER_PRIVATE_KEY;
-        const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS;
+        const rpcUrl = process.env.SAGA_RPC_URL as string;
+        const privateKey = process.env.SERVER_PRIVATE_KEY as string;
+        const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS as string;
 
         if (!privateKey || !stakeArenaAddress) {
           console.warn('⚠️  Blockchain integration disabled: Missing SERVER_PRIVATE_KEY or STAKE_ARENA_ADDRESS');
         } else {
           this.blockchain = new BlockchainService(rpcUrl, privateKey, stakeArenaAddress);
           this.matchId = this.blockchain.generateMatchId(`match-${Date.now()}`);
-          console.log('✅ Blockchain integration enabled');
+          console.log('✅ Blockchain integration enabled (Native SSS)');
           console.log(`📝 Match ID: ${this.matchId}`);
         }
       } catch (error) {

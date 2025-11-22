@@ -163,7 +163,7 @@ export class UI {
 
   updateOnChainStats(bestScore: number, currentStake: string): void {
     this.bestScore.textContent = bestScore.toString();
-    this.currentStake.textContent = `${parseFloat(currentStake).toFixed(2)} SLTH`;
+    this.currentStake.textContent = `${parseFloat(currentStake).toFixed(2)} SSS`;
   }
 
   onTapOut(callback: () => void): void {

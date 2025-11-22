@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev ERC20 token for 0xSlither game economy
  */
 contract GameToken is ERC20, Ownable {
-    constructor(uint256 initialSupply) ERC20("SlitherCoin", "SLTH") Ownable(msg.sender) {
+    constructor(uint256 initialSupply) ERC20("Slither", "SSS") Ownable(msg.sender) {
         _mint(msg.sender, initialSupply);
     }
 

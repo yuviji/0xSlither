@@ -47,6 +47,7 @@ export class BlockchainService {
     console.log('BlockchainService initialized');
     console.log('Server wallet:', this.wallet.address);
     console.log('StakeArena contract:', stakeArenaAddress);
+    console.log('Using native SSS token for game economy');
   }
 
   /**

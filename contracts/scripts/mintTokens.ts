@@ -20,7 +20,7 @@ async function main() {
   console.log("Minting tokens...");
   console.log("GameToken:", gameTokenAddress);
   console.log("Recipient:", recipientAddress);
-  console.log("Amount:", amount, "SLTH");
+  console.log("Amount:", amount, "SSS");
 
   const GameToken = await ethers.getContractAt("GameToken", gameTokenAddress);
   const amountWei = ethers.parseEther(amount);
@@ -33,7 +33,7 @@ async function main() {
 
   // Verify balance
   const balance = await GameToken.balanceOf(recipientAddress);
-  console.log("New balance:", ethers.formatEther(balance), "SLTH");
+  console.log("New balance:", ethers.formatEther(balance), "SSS");
 }
 
 main()
