@@ -4,6 +4,12 @@
 
 Your complete Slither.io game is built and running!
 
+### 🆕 Latest Updates (November 22, 2025)
+- **Jerkiness Removed**: Ultra-smooth camera movement with easing
+- **Dynamic Growth**: Pellet size now affects growth (larger = more segments)
+- **Enhanced Interpolation**: Seamless movement between server updates
+- **Collision Improvements**: More precise boundary and snake detection
+
 ## 🚀 Quick Access
 
 **Play Now**: Open http://localhost:3000 in your browser
@@ -27,10 +33,10 @@ Your complete Slither.io game is built and running!
 
 ✅ **Core Gameplay**
 - Real-time multiplayer (unlimited players)
-- Smooth snake movement with mouse control
+- Ultra-smooth snake movement with mouse control (interpolated)
 - 500 pellets in a 5000×5000 world
-- Eat pellets to grow
-- Collision detection (snake-to-snake)
+- Eat pellets to grow (growth proportional to pellet size)
+- Precise collision detection (snake-to-snake)
 - Death and instant respawn
 
 ✅ **Server (Node.js + TypeScript)**
@@ -44,9 +50,9 @@ Your complete Slither.io game is built and running!
 
 ✅ **Client (Browser + TypeScript)**
 - Canvas 2D rendering (60 FPS)
-- Smooth camera following
-- Client-side interpolation
-- Mouse input handling
+- Ultra-smooth camera following with easing
+- Client-side interpolation (no jerkiness)
+- Precise mouse input handling
 - Start screen with name input
 - Death screen with score
 - Live leaderboard (Top 5)

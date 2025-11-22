@@ -4,6 +4,12 @@
 
 All core functionality has been implemented and tested. Both servers are running successfully.
 
+### Recent Improvements (November 22, 2025)
+- ✅ **Removed Movement Jerkiness**: Enhanced camera smoothing (20% easing factor) for ultra-smooth gameplay
+- ✅ **Advanced Interpolation**: Improved client-side interpolation between server ticks for seamless visuals
+- ✅ **Dynamic Pellet Growth**: Growth now proportional to pellet size (2-4 segments based on pellet size)
+- ✅ **Optimized Collision Detection**: Enhanced snake-to-snake collision with improved boundary checking
+
 ## 📁 Project Structure
 
 ```
@@ -45,11 +51,11 @@ All core functionality has been implemented and tested. Both servers are running
 ### Core Gameplay ✅
 - [x] Real-time multiplayer with WebSocket communication
 - [x] Authoritative server at 20 TPS (ticks per second)
-- [x] Client rendering at 60 FPS with interpolation
-- [x] Smooth snake movement with rotation control
+- [x] Client rendering at 60 FPS with smooth interpolation (jerkiness-free)
+- [x] Ultra-smooth snake movement with rotation control
 - [x] Mouse-based directional input
-- [x] 500 pellets spawning across a 5000x5000 world
-- [x] Pellet consumption and snake growth
+- [x] 500 pellets spawning across a 5000x5000 world (varied sizes)
+- [x] Pellet consumption and snake growth (proportional to pellet size)
 - [x] Snake body segments following head with proper spacing
 
 ### Collision System ✅
@@ -78,11 +84,13 @@ All core functionality has been implemented and tested. Both servers are running
 - [x] Connection status indicator
 
 ### Performance & Optimization ✅
-- [x] Client-side interpolation for smooth visuals
+- [x] Advanced client-side interpolation for jerkiness-free visuals
 - [x] Efficient state serialization
 - [x] Throttled input sending (50ms)
 - [x] Off-screen culling for rendering
 - [x] Compact message format for network efficiency
+- [x] Smooth camera easing (20% smoothing factor)
+- [x] Optimized collision detection with early exit
 
 ## 🚀 Running the Game
 
@@ -126,7 +134,7 @@ All core functionality has been implemented and tested. Both servers are running
 - Max rotation: 360°/second (smooth turning)
 - Initial length: 5 segments
 - Segment spacing: 15 units
-- Growth: +3 segments per pellet
+- Growth: Variable (2-4 segments per pellet, proportional to pellet size)
 
 ### Collision Rules
 - Head hits other snake's body → Death
@@ -193,12 +201,13 @@ The following features are out of scope for this core implementation:
 
 ## ✨ Highlights
 
-1. **Smooth Gameplay**: 60 FPS client rendering with 20 TPS server updates
+1. **Ultra-Smooth Gameplay**: 60 FPS client rendering with advanced interpolation (no jerkiness)
 2. **Real Multiplayer**: Multiple players can play simultaneously
 3. **Low Latency**: Efficient WebSocket communication
-4. **Scalable**: Clean architecture ready for extensions
-5. **Type-Safe**: Full TypeScript for reliability
-6. **Developer Experience**: Hot reload with Vite and tsx watch mode
+4. **Dynamic Growth System**: Pellet size affects growth (larger pellets = more segments)
+5. **Scalable**: Clean architecture ready for extensions
+6. **Type-Safe**: Full TypeScript for reliability
+7. **Developer Experience**: Hot reload with Vite and tsx watch mode
 
 ## 🎉 Conclusion
 

@@ -5,11 +5,11 @@ A real-time multiplayer Slither.io-style game built with TypeScript, Node.js, an
 ## Features
 
 - **Real-time Multiplayer**: Authoritative server with WebSocket communication
-- **Smooth Movement**: Client-side interpolation for 60 FPS visuals despite 20 TPS server updates
-- **Collision Detection**: Snake-to-snake collisions and pellet consumption
+- **Ultra-Smooth Movement**: Advanced client-side interpolation for jerkiness-free 60 FPS visuals
+- **Collision Detection**: Precise snake-to-snake collisions and pellet consumption
 - **Leaderboard**: Live top 5 players
-- **Growth System**: Eat pellets to grow your snake
-- **Responsive Camera**: Follows your snake smoothly
+- **Dynamic Growth System**: Eat pellets to grow (growth proportional to pellet size)
+- **Responsive Camera**: Follows your snake smoothly with easing
 
 ## Tech Stack
 
@@ -137,8 +137,8 @@ The built client files will be in `client/dist/`.
 
 ## Game Mechanics
 
-- **Movement**: Snake moves continuously forward, mouse controls rotation
-- **Growth**: Each pellet eaten adds segments to your snake
+- **Movement**: Snake moves continuously forward, mouse controls rotation (ultra-smooth)
+- **Growth**: Each pellet eaten adds segments (2-4 segments based on pellet size)
 - **Death**: Colliding with another snake's body kills you
 - **Respawn**: Click "Play Again" to respawn with a new snake
 - **Score**: Based on snake length
@@ -160,7 +160,8 @@ The built client files will be in `client/dist/`.
 ## Performance
 
 - Server: 20 TPS (ticks per second)
-- Client: 60 FPS rendering with interpolation
+- Client: 60 FPS rendering with advanced interpolation (jerkiness-free)
+- Smooth camera easing for professional feel
 - Supports 10-20+ concurrent players smoothly
 
 ## Future Enhancements (Not Yet Implemented)

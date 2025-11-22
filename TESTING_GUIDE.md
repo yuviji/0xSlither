@@ -6,6 +6,11 @@ Both servers are running and ready for testing:
 - ✅ **Server**: ws://localhost:8080 (WebSocket)
 - ✅ **Client**: http://localhost:3000 (Web Interface)
 
+### 🆕 Latest Improvements (November 22, 2025)
+- ✅ **Jerkiness Removed**: Ultra-smooth movement with enhanced camera easing
+- ✅ **Dynamic Growth**: Pellets now vary in size (4-8 units), growth proportional to size
+- ✅ **Better Interpolation**: Seamless visuals between server ticks
+
 ## Quick Start
 
 ### 1. Open the Game
@@ -52,10 +57,12 @@ Open **multiple browser tabs** to `http://localhost:3000`:
 - [ ] **Snake Colors**: Each snake has a unique color
 - [ ] **Snake Eyes**: Heads have eyes pointing forward
 - [ ] **Body Segments**: Smooth, gradient-styled segments
-- [ ] **Smooth Movement**: 60 FPS rendering feels fluid
+- [ ] **Ultra-Smooth Movement**: 60 FPS rendering with no jerkiness
+- [ ] **Camera Easing**: Smooth camera following (20% smoothing)
 - [ ] **UI Polish**: Glassmorphism effects on panels
 - [ ] **Gold/Silver/Bronze**: Top 3 players highlighted
 - [ ] **Connection Status**: Shows "Connected" in top-left
+- [ ] **Varied Pellets**: Different sized pellets (4-8 units)
 
 ### Edge Cases
 
@@ -70,9 +77,9 @@ Open **multiple browser tabs** to `http://localhost:3000`:
 ### Normal Gameplay
 
 1. **Spawning**: Appears at random location with 5 segments
-2. **Movement**: Smooth forward motion at 150 units/sec
+2. **Movement**: Ultra-smooth forward motion at 150 units/sec (jerkiness-free)
 3. **Turning**: Max 360°/sec rotation (no instant turns)
-4. **Eating**: Pellet disappears, snake grows by 3 segments
+4. **Eating**: Pellet disappears, snake grows by 2-4 segments (based on pellet size)
 5. **Collision**: Instant death, shows final score
 6. **Respawn**: New snake at new random location
 
@@ -94,9 +101,10 @@ Open **multiple browser tabs** to `http://localhost:3000`:
 
 ### Visual Quirks
 
-- **Interpolation**: Very slight lag is normal (< 50ms)
+- **Interpolation**: Movement is smooth and jerkiness-free (enhanced algorithm)
 - **Segment Spacing**: Body segments have fixed 15-unit gaps
-- **Camera Smoothing**: Slight delay in camera movement is intentional
+- **Camera Smoothing**: 20% easing factor for professional camera feel
+- **Pellet Sizes**: Pellets vary from 4 to 8 units for visual variety
 
 ## 📊 Monitoring Server
 

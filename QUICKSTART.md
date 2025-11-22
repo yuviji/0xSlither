@@ -4,6 +4,11 @@
 
 The game servers are now running!
 
+### 🆕 Latest Updates (November 22, 2025)
+- ✨ **Ultra-Smooth Movement**: Jerkiness removed with enhanced interpolation
+- 🎯 **Dynamic Growth**: Pellets vary in size, growth proportional to pellet size
+- 📹 **Better Camera**: Smoother following with 20% easing factor
+
 ### Access the Game
 
 Open your browser and navigate to:
@@ -19,7 +24,7 @@ http://localhost:3000
 
 ### Objective
 
-1. Eat colorful pellets to grow your snake
+1. Eat colorful pellets to grow your snake (larger pellets = more growth!)
 2. Avoid hitting other snakes' bodies
 3. Compete for the top spot on the leaderboard!
 
@@ -42,12 +47,12 @@ To stop the servers, press `Ctrl+C` in the terminal windows where they're runnin
 ## 🎯 Features Implemented
 
 - [x] Real-time multiplayer gameplay
-- [x] Smooth snake movement with interpolation
-- [x] Pellet consumption and growth
-- [x] Snake-to-snake collision detection
+- [x] Ultra-smooth snake movement with advanced interpolation (no jerkiness)
+- [x] Dynamic pellet system (varied sizes, growth proportional to pellet size)
+- [x] Precise snake-to-snake collision detection
 - [x] Death and respawn system
 - [x] Live leaderboard (Top 5 players)
-- [x] Responsive camera following player
+- [x] Smooth camera following player with easing
 - [x] Grid background
 - [x] Name display above snakes
 - [x] Colored snakes with unique hues
