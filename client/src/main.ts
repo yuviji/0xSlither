@@ -72,13 +72,19 @@ class GameClient {
       }
     });
 
-    this.game.onDead((score) => {
+    this.game.onDead(async (score) => {
       console.log('Player died with score:', score);
       this.isPlaying = false;
       this.isSpectating = true;
       this.ui.showDeathScreen(score);
       this.ui.hideGameControls(); // Hide tap out button after death
       this.stopStatsUpdates();
+      
+      // Wait for blockchain transaction to process, then update stats one final time
+      setTimeout(async () => {
+        await this.updateOnChainStatsAfterDeath(score);
+        console.log('Final stats updated after death');
+      }, 3000); // Wait 3 seconds for blockchain confirmation
     });
 
     this.ui.onStake(async () => {
@@ -313,6 +319,28 @@ class GameClient {
       this.ui.updateOnChainStats(bestScore, currentStake);
     } catch (error) {
       console.error('Error updating on-chain stats:', error);
+    }
+  }
+
+  private async updateOnChainStatsAfterDeath(finalScore: number): Promise<void> {
+    if (!this.wallet || !this.walletAddress) return;
+
+    try {
+      const bestScoreFromChain = await this.wallet.getBestScore();
+      const currentStake = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
+      
+      // Display the higher of the final score or the on-chain best score
+      const displayScore = Math.max(finalScore, bestScoreFromChain);
+      
+      console.log(`Final score: ${finalScore}, On-chain best: ${bestScoreFromChain}, Displaying: ${displayScore}`);
+      
+      // Update on-chain stats panel
+      this.ui.updateOnChainStats(displayScore, currentStake);
+      
+      // Update death screen with best score info
+      this.ui.updateDeathScreenWithBestScore(finalScore, displayScore);
+    } catch (error) {
+      console.error('Error updating on-chain stats after death:', error);
     }
   }
 

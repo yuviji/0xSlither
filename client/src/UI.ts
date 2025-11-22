@@ -3,12 +3,14 @@ import { StateMessage } from 'shared';
 export class UI {
   private startScreen: HTMLElement;
   private deathScreen: HTMLElement;
+  private deathScreenTitle: HTMLElement;
   private leaderboard: HTMLElement;
   private leaderboardList: HTMLElement;
   private connectionStatus: HTMLElement;
   private playButton: HTMLButtonElement;
   private respawnButton: HTMLButtonElement;
   private finalScoreElement: HTMLElement;
+  private bestScoreDisplay: HTMLElement;
   private connectWalletButton: HTMLButtonElement;
   private walletStatus: HTMLElement;
   private stakeSection: HTMLElement;
@@ -26,12 +28,14 @@ export class UI {
   constructor() {
     this.startScreen = document.getElementById('startScreen')!;
     this.deathScreen = document.getElementById('deathScreen')!;
+    this.deathScreenTitle = document.getElementById('deathScreenTitle')!;
     this.leaderboard = document.getElementById('leaderboard')!;
     this.leaderboardList = document.getElementById('leaderboardList')!;
     this.connectionStatus = document.getElementById('connectionStatus')!;
     this.playButton = document.getElementById('playButton') as HTMLButtonElement;
     this.respawnButton = document.getElementById('respawnButton') as HTMLButtonElement;
     this.finalScoreElement = document.getElementById('finalScore')!;
+    this.bestScoreDisplay = document.getElementById('bestScoreDisplay')!;
     this.connectWalletButton = document.getElementById('connectWalletButton') as HTMLButtonElement;
     this.walletStatus = document.getElementById('walletStatus')!;
     this.stakeSection = document.getElementById('stakeSection')!;
@@ -63,6 +67,16 @@ export class UI {
   showDeathScreen(score: number): void {
     this.deathScreen.classList.remove('hidden');
     this.finalScoreElement.textContent = score.toString();
+    
+    // Reset title to default
+    this.deathScreenTitle.textContent = 'You Died!';
+    this.deathScreenTitle.style.color = '#00ff88';
+    
+    // Set best score to loading initially
+    const scoreSpan = this.bestScoreDisplay.querySelector('.score');
+    if (scoreSpan) {
+      scoreSpan.textContent = 'Loading...';
+    }
   }
 
   hideDeathScreen(): void {
@@ -184,6 +198,31 @@ export class UI {
   updateOnChainStats(bestScore: number, currentStake: string): void {
     this.bestScore.textContent = bestScore.toString();
     this.currentStake.textContent = `${parseFloat(currentStake).toFixed(2)} SSS`;
+    
+    // Also update the best score on death screen if visible
+    if (!this.deathScreen.classList.contains('hidden')) {
+      const scoreSpan = this.bestScoreDisplay.querySelector('.score');
+      if (scoreSpan) {
+        scoreSpan.textContent = bestScore.toString();
+      }
+    }
+  }
+
+  updateDeathScreenWithBestScore(finalScore: number, bestScore: number): void {
+    // Update the best score display
+    const scoreSpan = this.bestScoreDisplay.querySelector('.score');
+    if (scoreSpan) {
+      scoreSpan.textContent = bestScore.toString();
+    }
+
+    // If it's a new high score, update the title
+    if (finalScore >= bestScore && finalScore > 0) {
+      this.deathScreenTitle.textContent = 'New High Score!';
+      this.deathScreenTitle.style.color = '#FFD700'; // Gold color
+    } else {
+      this.deathScreenTitle.textContent = 'You Died!';
+      this.deathScreenTitle.style.color = '#00ff88'; // Reset to default
+    }
   }
 
   onTapOut(callback: () => void): void {

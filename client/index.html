@@ -484,8 +484,11 @@
     </div>
 
     <div id="deathScreen" class="hidden">
-      <h1>You Died!</h1>
+      <h1 id="deathScreenTitle">You Died!</h1>
       <p>Final Score: <span class="score" id="finalScore">0</span></p>
+      <p id="bestScoreDisplay" style="font-size: 16px; margin-top: 10px; opacity: 0.8;">
+        Best Score: <span class="score" style="font-size: 20px;">--</span>
+      </p>
       <button id="respawnButton">Play Again</button>
     </div>
 
