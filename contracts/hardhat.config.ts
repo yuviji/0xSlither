@@ -1,5 +1,8 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -15,7 +18,7 @@ const config: HardhatUserConfig = {
     saga: {
       url: process.env.SAGA_RPC_URL as string,
       accounts: [process.env.PRIVATE_KEY as string],
-      chainId: parseInt(process.env.CHAIN_ID as string),
+      chainId: parseInt(process.env.SAGA_CHAIN_ID as string),
     },
   },
   paths: {

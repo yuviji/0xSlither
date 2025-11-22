@@ -39,6 +39,9 @@ importers:
       '@nomicfoundation/hardhat-toolbox':
         specifier: ^4.0.0
         version: 4.0.0(2e5368d32e9c0f5e1ee8a2b58e01fa08)
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
       hardhat:
         specifier: ^2.19.4
         version: 2.27.0(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.9.3))(typescript@5.9.3)
