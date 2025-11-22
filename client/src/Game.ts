@@ -18,6 +18,7 @@ export class Game {
   private onStateUpdateCallback: ((state: StateMessage) => void) | null = null;
   private onDeadCallback: ((score: number) => void) | null = null;
   private onConnectedCallback: (() => void) | null = null;
+  private onPlayerIdReceivedCallback: ((playerId: string) => void) | null = null;
 
   constructor(serverUrl: string) {
     this.connect(serverUrl);
@@ -55,9 +56,14 @@ export class Game {
       this.currentState = message;
       this.lastUpdateTime = Date.now();
 
-      if (message.yourId) {
+      if (message.yourId && this.playerId !== message.yourId) {
         this.playerId = message.yourId;
         console.log('Received player ID:', this.playerId);
+        
+        // Notify that player ID was received
+        if (this.onPlayerIdReceivedCallback) {
+          this.onPlayerIdReceivedCallback(this.playerId);
+        }
       }
 
       if (this.onStateUpdateCallback) {
@@ -111,6 +117,10 @@ export class Game {
 
   onConnected(callback: () => void): void {
     this.onConnectedCallback = callback;
+  }
+
+  onPlayerIdReceived(callback: (playerId: string) => void): void {
+    this.onPlayerIdReceivedCallback = callback;
   }
 
   getInterpolatedState(): StateMessage | null {

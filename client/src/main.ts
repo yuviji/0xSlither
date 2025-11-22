@@ -72,6 +72,21 @@ class GameClient {
       }
     });
 
+    this.game.onPlayerIdReceived((playerId) => {
+      console.log('Player ID received, enabling gameplay:', playerId);
+      // Now that we have a player ID, we can start playing
+      if (!this.isPlaying) {
+        this.isPlaying = true;
+        this.ui.hideStartScreen();
+        this.ui.hideDeathScreen();
+        
+        // Start updating on-chain stats if blockchain enabled
+        if (STAKE_ARENA_ADDRESS) {
+          this.startStatsUpdates();
+        }
+      }
+    });
+
     this.game.onDead(async (score) => {
       console.log('Player died with score:', score);
       this.isPlaying = false;
@@ -201,17 +216,18 @@ class GameClient {
       return;
     }
 
+    // Show loading state while waiting for server to assign player ID
+    this.ui.showLoading('Joining game...');
+    
     // Use wallet address as the player name
-    this.game.join(this.walletAddress, this.walletAddress);
-    this.ui.hideStartScreen();
-    this.ui.hideDeathScreen();
-    this.isPlaying = true;
+    // The actual playing state will be enabled when we receive the player ID from the server
     this.isSpectating = false;
-
-    // Start updating on-chain stats if blockchain enabled
-    if (STAKE_ARENA_ADDRESS) {
-      this.startStatsUpdates();
-    }
+    this.game.join(this.walletAddress, this.walletAddress);
+    
+    // Hide loading after a short delay (the onPlayerIdReceived callback will handle the rest)
+    setTimeout(() => {
+      this.ui.hideLoading();
+    }, 1000);
   }
 
   private async handleTapOut(): Promise<void> {
