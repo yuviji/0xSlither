@@ -1,51 +1,119 @@
-# 0xSlither
+# 🎮 0xSlither
 
-A real-time multiplayer Slither.io-style game built with TypeScript, Node.js, and WebSockets.
+A real-time multiplayer Slither.io-style game with a complete on-chain economy powered by Saga Chainlet.
 
-## Features
+**Built for ETHGlobal Buenos Aires 2025** 🇦🇷
 
-- **Real-time Multiplayer**: Authoritative server with WebSocket communication
+## ✨ Features
+
+### 🎯 Core Gameplay
+- **Real-time Multiplayer**: Authoritative 20 TPS server with WebSocket communication
 - **Ultra-Smooth Movement**: Advanced client-side interpolation for jerkiness-free 60 FPS visuals
 - **Collision Detection**: Precise snake-to-snake collisions and pellet consumption
-- **Leaderboard**: Live top 5 players
 - **Dynamic Growth System**: Eat pellets to grow (growth proportional to pellet size)
 - **Responsive Camera**: Follows your snake smoothly with easing
 
-## Tech Stack
+### ⛓️ Blockchain Economy (NEW!)
+- **Stake-to-Enter**: Players stake SLTH tokens to join matches
+- **Loot-on-Eat**: Winners receive 100% of eaten players' stakes on-chain
+- **Tap-Out Anytime**: Exit and withdraw your current stake
+- **On-Chain Leaderboard**: Top 10 players tracked permanently
+- **Match Finalization**: Results stored on Saga Chainlet
+- **Best Score Tracking**: Forever preserved on-chain
+- **Entropy Commitment**: Placeholder for Pyth Entropy integration
 
+## 🛠️ Tech Stack
+
+### Game Engine
 - **TypeScript** - Type-safe code for both client and server
 - **Node.js + ws** - WebSocket server for real-time communication
 - **Vite** - Fast client-side development and building
 - **Canvas 2D** - High-performance rendering
 
-## Project Structure
+### Blockchain
+- **Saga Chainlet** - Dedicated EVM L1 with recycled gas
+- **Solidity 0.8.20** - Smart contracts
+- **Hardhat** - Development and deployment
+- **ethers.js v6** - Blockchain integration
+- **OpenZeppelin** - Secure contract libraries
+
+## 📁 Project Structure
 
 ```
-/server          # Authoritative game server
+/server          # Authoritative game server (20 TPS)
   /src
-    index.ts     # WebSocket server
-    GameServer.ts # Main game loop
-    Snake.ts     # Snake entity
-    Pellet.ts    # Pellet management
-    CollisionDetection.ts
-    Leaderboard.ts
+    index.ts                # WebSocket server
+    GameServer.ts           # Main game loop & kill detection
+    Snake.ts                # Snake entity with wallet address
+    BlockchainService.ts    # Web3 integration (NEW!)
+    Pellet.ts               # Pellet management
+    CollisionDetection.ts   # Physics
+    Leaderboard.ts          # In-memory rankings
 
-/client          # Browser-based frontend
+/client          # Browser-based frontend (60 FPS)
   /src
-    main.ts      # Entry point
-    Game.ts      # Client game state
-    Renderer.ts  # Canvas rendering
-    Camera.ts    # Camera system
+    main.ts         # Entry point
+    Game.ts         # Client game state
+    WalletService.ts # Wallet connection & staking (NEW!)
+    Renderer.ts     # Canvas rendering
+    Camera.ts       # Camera system
     InputHandler.ts # Mouse input
-    UI.ts        # UI management
+    UI.ts           # UI management
+
+/contracts       # Smart contracts (NEW!)
+  /contracts
+    GameToken.sol      # ERC20 token (SLTH)
+    StakeArena.sol     # Main game contract
+  /scripts
+    deploy.ts          # Deployment script
+    updateServer.ts    # Authorize server
+    mintTokens.ts      # Mint test tokens
+    getLeaderboard.ts  # Query on-chain data
 
 /shared          # Shared types and protocol
   constants.ts   # Game constants
   types.ts       # Entity types
-  protocol.ts    # WebSocket messages
+  protocol.ts    # WebSocket messages (includes TAPOUT)
 ```
 
-## Getting Started
+## 🚀 Getting Started
+
+### Quick Start (No Blockchain)
+
+Play the game immediately without blockchain features:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start both server and client
+pnpm run dev
+```
+
+Open http://localhost:3000 and play!
+
+### 🔗 Blockchain Setup
+
+To enable the full on-chain economy:
+
+1. **Quick Setup** (5 minutes): See [QUICKSTART_BLOCKCHAIN.md](QUICKSTART_BLOCKCHAIN.md)
+2. **Full Guide**: See [BLOCKCHAIN_SETUP.md](BLOCKCHAIN_SETUP.md)
+
+**TL;DR:**
+```bash
+# 1. Deploy contracts
+cd contracts && pnpm run deploy
+
+# 2. Configure server
+cd ../server && echo "BLOCKCHAIN_ENABLED=true" > .env
+# (add contract addresses)
+
+# 3. Configure client
+cd ../client && echo "VITE_GAME_TOKEN_ADDRESS=..." > .env
+
+# 4. Start everything
+cd .. && pnpm run dev
+```
 
 ### Prerequisites
 

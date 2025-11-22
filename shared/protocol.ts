@@ -10,6 +10,8 @@ export enum MessageType {
   DEAD = 'DEAD',
   PING = 'PING',
   PONG = 'PONG',
+  TAPOUT = 'TAPOUT',
+  TAPOUT_SUCCESS = 'TAPOUT_SUCCESS',
 }
 
 // Client to Server messages
@@ -29,7 +31,12 @@ export interface PingMessage {
   timestamp: number;
 }
 
-export type ClientMessage = JoinMessage | InputMessage | PingMessage;
+export interface TapOutMessage {
+  type: MessageType.TAPOUT;
+  matchId: string;
+}
+
+export type ClientMessage = JoinMessage | InputMessage | PingMessage | TapOutMessage;
 
 // Server to Client messages
 export interface StateMessage {
@@ -51,7 +58,12 @@ export interface PongMessage {
   timestamp: number;
 }
 
-export type ServerMessage = StateMessage | DeadMessage | PongMessage;
+export interface TapOutSuccessMessage {
+  type: MessageType.TAPOUT_SUCCESS;
+  amountWithdrawn: number;
+}
+
+export type ServerMessage = StateMessage | DeadMessage | PongMessage | TapOutSuccessMessage;
 
 // Type guards
 export function isJoinMessage(msg: any): msg is JoinMessage {
@@ -65,5 +77,9 @@ export function isInputMessage(msg: any): msg is InputMessage {
 
 export function isPingMessage(msg: any): msg is PingMessage {
   return msg.type === MessageType.PING && typeof msg.timestamp === 'number';
+}
+
+export function isTapOutMessage(msg: any): msg is TapOutMessage {
+  return msg.type === MessageType.TAPOUT && typeof msg.matchId === 'string';
 }
 

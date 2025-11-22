@@ -12,6 +12,14 @@ export class UI {
   private finalScoreElement: HTMLElement;
   private connectWalletButton: HTMLButtonElement;
   private walletStatus: HTMLElement;
+  private stakeSection: HTMLElement;
+  private stakeInput: HTMLInputElement;
+  private tokenBalance: HTMLElement;
+  private onChainStats: HTMLElement;
+  private bestScore: HTMLElement;
+  private currentStake: HTMLElement;
+  private gameControls: HTMLElement;
+  private tapOutButton: HTMLButtonElement;
 
   constructor() {
     this.startScreen = document.getElementById('startScreen')!;
@@ -25,6 +33,14 @@ export class UI {
     this.finalScoreElement = document.getElementById('finalScore')!;
     this.connectWalletButton = document.getElementById('connectWalletButton') as HTMLButtonElement;
     this.walletStatus = document.getElementById('walletStatus')!;
+    this.stakeSection = document.getElementById('stakeSection')!;
+    this.stakeInput = document.getElementById('stakeInput') as HTMLInputElement;
+    this.tokenBalance = document.getElementById('tokenBalance')!;
+    this.onChainStats = document.getElementById('onChainStats')!;
+    this.bestScore = document.getElementById('bestScore')!;
+    this.currentStake = document.getElementById('currentStake')!;
+    this.gameControls = document.getElementById('gameControls')!;
+    this.tapOutButton = document.getElementById('tapOutButton') as HTMLButtonElement;
   }
 
   showStartScreen(): void {
@@ -37,6 +53,8 @@ export class UI {
   hideStartScreen(): void {
     this.startScreen.classList.add('hidden');
     this.leaderboard.classList.remove('hidden');
+    this.gameControls.classList.remove('hidden');
+    this.onChainStats.classList.remove('hidden');
   }
 
   showDeathScreen(score: number): void {
@@ -124,12 +142,46 @@ export class UI {
     this.connectWalletButton.disabled = true;
     this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
     this.walletStatus.className = 'success';
+    this.stakeSection.classList.remove('hidden');
+    this.playButton.textContent = 'Stake & Play';
   }
 
   setWalletNotAvailable(): void {
     this.connectWalletButton.disabled = true;
     this.walletStatus.textContent = 'No wallet detected. Continue as guest.';
     this.walletStatus.className = '';
+    this.playButton.textContent = 'Play as Guest';
+  }
+
+  updateTokenBalance(balance: string): void {
+    this.tokenBalance.textContent = parseFloat(balance).toFixed(2);
+  }
+
+  getStakeAmount(): string {
+    return this.stakeInput.value || '0';
+  }
+
+  updateOnChainStats(bestScore: number, currentStake: string): void {
+    this.bestScore.textContent = bestScore.toString();
+    this.currentStake.textContent = `${parseFloat(currentStake).toFixed(2)} SLTH`;
+  }
+
+  onTapOut(callback: () => void): void {
+    this.tapOutButton.addEventListener('click', () => {
+      callback();
+    });
+  }
+
+  setTapOutEnabled(enabled: boolean): void {
+    this.tapOutButton.disabled = !enabled;
+  }
+
+  showGameControls(): void {
+    this.gameControls.classList.remove('hidden');
+  }
+
+  hideGameControls(): void {
+    this.gameControls.classList.add('hidden');
   }
 }
 

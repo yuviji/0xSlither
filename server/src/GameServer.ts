@@ -2,6 +2,7 @@ import { SnakeEntity } from './Snake';
 import { PelletManager } from './Pellet';
 import { CollisionDetection } from './CollisionDetection';
 import { Leaderboard } from './Leaderboard';
+import { BlockchainService } from './BlockchainService';
 import {
   StateMessage,
   MessageType,
@@ -19,9 +20,16 @@ export class GameServer {
   private tickCount = 0;
   private lastTickTime = Date.now();
   private gameLoop: NodeJS.Timeout | null = null;
+  private blockchain: BlockchainService | null = null;
+  private matchId: string | null = null;
 
   constructor() {
     this.pelletManager = new PelletManager(PELLET_COUNT);
+  }
+
+  setBlockchainService(blockchain: BlockchainService, matchId: string): void {
+    this.blockchain = blockchain;
+    this.matchId = matchId;
   }
 
   start(): void {
@@ -81,6 +89,12 @@ export class GameServer {
             // Killer gains the victim's score
             killer.grow(victimScore);
             console.log(`${killer.name} ate ${victim.name} and gained ${victimScore} points!`);
+            
+            // Report to blockchain if both have addresses
+            if (this.blockchain && this.matchId && killer.address && victim.address) {
+              this.blockchain.reportEat(this.matchId, killer.address, victim.address)
+                .catch(err => console.error('Error reporting eat to blockchain:', err));
+            }
           }
         }
       }

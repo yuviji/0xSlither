@@ -1,16 +1,23 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { GameServer } from './GameServer';
+import { BlockchainService } from './BlockchainService';
+import * as dotenv from 'dotenv';
 import {
   ClientMessage,
   ServerMessage,
   MessageType,
   DeadMessage,
+  TapOutSuccessMessage,
   isJoinMessage,
   isInputMessage,
   isPingMessage,
+  isTapOutMessage,
 } from 'shared';
 
+dotenv.config();
+
 const PORT = process.env.PORT || 8080;
+const BLOCKCHAIN_ENABLED = process.env.BLOCKCHAIN_ENABLED === 'true';
 
 class Player {
   constructor(
@@ -23,6 +30,8 @@ class Player {
 class WebSocketGameServer {
   private wss: WebSocketServer;
   private gameServer: GameServer;
+  private blockchain: BlockchainService | null = null;
+  private matchId: string;
   private players: Map<WebSocket, Player> = new Map();
   private nextPlayerId = 0;
   private broadcastInterval: NodeJS.Timeout | null = null;
@@ -31,6 +40,29 @@ class WebSocketGameServer {
     this.gameServer = new GameServer();
     this.wss = new WebSocketServer({ port });
     
+    // Initialize blockchain if enabled
+    if (BLOCKCHAIN_ENABLED) {
+      try {
+        const rpcUrl = process.env.SAGA_RPC_URL || 'https://slither-2763767854157000-1.jsonrpc.sagarpc.io';
+        const privateKey = process.env.SERVER_PRIVATE_KEY;
+        const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS;
+
+        if (!privateKey || !stakeArenaAddress) {
+          console.warn('⚠️  Blockchain integration disabled: Missing SERVER_PRIVATE_KEY or STAKE_ARENA_ADDRESS');
+        } else {
+          this.blockchain = new BlockchainService(rpcUrl, privateKey, stakeArenaAddress);
+          this.matchId = this.blockchain.generateMatchId(`match-${Date.now()}`);
+          console.log('✅ Blockchain integration enabled');
+          console.log(`📝 Match ID: ${this.matchId}`);
+        }
+      } catch (error) {
+        console.error('Failed to initialize blockchain:', error);
+      }
+    } else {
+      console.log('ℹ️  Blockchain integration disabled (set BLOCKCHAIN_ENABLED=true to enable)');
+    }
+    
+    this.matchId = `match-${Date.now()}`;
     this.wss.on('connection', (ws: WebSocket) => this.handleConnection(ws));
     
     console.log(`WebSocket server listening on port ${port}`);
@@ -38,6 +70,11 @@ class WebSocketGameServer {
 
   start(): void {
     this.gameServer.start();
+    
+    // Connect blockchain to game server if enabled
+    if (this.blockchain) {
+      this.gameServer.setBlockchainService(this.blockchain, this.matchId);
+    }
     
     // Broadcast game state at server tick rate
     this.broadcastInterval = setInterval(() => {
@@ -78,6 +115,8 @@ class WebSocketGameServer {
       this.handleInput(player, message.targetAngle);
     } else if (isPingMessage(message)) {
       this.handlePing(player, message.timestamp);
+    } else if (isTapOutMessage(message)) {
+      this.handleTapOut(player, message.matchId);
     }
   }
 
@@ -110,6 +149,34 @@ class WebSocketGameServer {
       type: MessageType.PONG,
       timestamp,
     });
+  }
+
+  private async handleTapOut(player: Player, matchId: string): Promise<void> {
+    if (!player.snakeId) {
+      console.log(`Player ${player.id} tried to tap out without active snake`);
+      return;
+    }
+
+    const snake = this.gameServer.getSnake(player.snakeId);
+    if (!snake || !snake.address) {
+      console.log(`Cannot tap out: no wallet address for player ${player.id}`);
+      return;
+    }
+
+    console.log(`Player ${player.id} tapping out from match ${matchId}`);
+
+    // Remove snake from game
+    const finalStake = snake.getScore(); // Use score as proxy for stake
+    this.gameServer.removeSnake(player.snakeId);
+    player.snakeId = null;
+
+    // Note: Actual withdrawal happens on-chain when player calls tapOut() from client
+    // Server just removes them from the game
+    const tapOutMsg: TapOutSuccessMessage = {
+      type: MessageType.TAPOUT_SUCCESS,
+      amountWithdrawn: finalStake,
+    };
+    this.sendMessage(player.ws, tapOutMsg);
   }
 
   private handleDisconnect(player: Player): void {

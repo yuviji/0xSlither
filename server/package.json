@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "ws": "^8.18.0",
-    "shared": "*"
+    "shared": "*",
+    "ethers": "^6.9.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
