@@ -22,6 +22,7 @@ class GameClient {
   private wallet: WalletService | null = null;
   private canvas: HTMLCanvasElement;
   private isPlaying = false;
+  private isSpectating = false;
   private lastInputTime = 0;
   private inputThrottle = 50; // Send input at most every 50ms
   private animationFrameId: number | null = null;
@@ -41,6 +42,9 @@ class GameClient {
     this.setupEventHandlers();
     this.ui.showStartScreen();
     this.checkWalletAvailability();
+    
+    // Start game loop immediately for spectator mode
+    this.gameLoop();
   }
 
   private checkWalletAvailability(): void {
@@ -66,6 +70,7 @@ class GameClient {
     this.game.onDead((score) => {
       console.log('Player died with score:', score);
       this.isPlaying = false;
+      this.isSpectating = true;
       this.ui.showDeathScreen(score);
       this.stopStatsUpdates();
     });
@@ -85,6 +90,10 @@ class GameClient {
     this.ui.onTapOut(async () => {
       await this.handleTapOut();
     });
+
+    this.ui.onRetry(async () => {
+      await this.attemptTapOutTransaction();
+    });
   }
 
   private async connectWallet(): Promise<string | null> {
@@ -94,6 +103,7 @@ class GameClient {
     }
 
     try {
+      this.ui.showLoading('Connecting to MetaMask...');
       this.walletAddress = await this.wallet.connectWallet();
       
       if (this.walletAddress) {
@@ -110,9 +120,11 @@ class GameClient {
         this.ui.updateTokenBalance(balance);
       }
       
+      this.ui.hideLoading();
       return this.walletAddress;
     } catch (error) {
       console.error('Error connecting wallet:', error);
+      this.ui.hideLoading();
       return null;
     }
   }
@@ -135,22 +147,23 @@ class GameClient {
 
       try {
         console.log(`Staking ${stakeAmount} SSS...`);
-        this.ui.updateConnectionStatus('Entering match...');
+        this.ui.showLoading(`Staking ${stakeAmount} SSS... Please sign the transaction in MetaMask.`);
         
         // Enter match
-        const entered = await this.wallet!.enterMatch(CURRENT_MATCH_ID, stakeAmount);
-        if (!entered) {
-          alert('Failed to enter match');
-          this.ui.updateConnectionStatus('Connected');
-          return;
-        }
+        await this.wallet!.enterMatch(CURRENT_MATCH_ID, stakeAmount);
 
         console.log('✅ Successfully staked and entered match');
-        this.ui.updateConnectionStatus('Connected');
-      } catch (error) {
+        this.ui.hideLoading();
+      } catch (error: any) {
         console.error('Error during stake process:', error);
-        alert('Failed to stake tokens. See console for details.');
-        this.ui.updateConnectionStatus('Connected');
+        this.ui.hideLoading();
+        
+        // Check if user rejected the transaction
+        if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+          alert('Transaction rejected. Please try again to play.');
+        } else {
+          alert('Failed to stake tokens. See console for details.');
+        }
         return;
       }
     }
@@ -160,10 +173,7 @@ class GameClient {
     this.ui.hideStartScreen();
     this.ui.hideDeathScreen();
     this.isPlaying = true;
-
-    if (!this.animationFrameId) {
-      this.gameLoop();
-    }
+    this.isSpectating = false;
 
     // Start updating on-chain stats if blockchain enabled
     if (STAKE_ARENA_ADDRESS) {
@@ -185,40 +195,62 @@ class GameClient {
     const confirmed = confirm('Are you sure you want to tap out and withdraw your stake?');
     if (!confirmed) return;
 
+    // Step 1: Immediately disconnect from game (remove player from server)
+    this.isPlaying = false;
+    this.isSpectating = true;
+    this.stopStatsUpdates();
+    this.ui.hideGameControls();
+    this.ui.hideDeathScreen();
+    
+    // Send tap out message to server to remove snake immediately
+    const tapOutMsg: TapOutMessage = {
+      type: MessageType.TAPOUT,
+      matchId: CURRENT_MATCH_ID,
+    };
+    this.game.sendCustomMessage(tapOutMsg);
+
+    // Step 2: Attempt to withdraw stake via blockchain transaction
+    await this.attemptTapOutTransaction();
+  }
+
+  private async attemptTapOutTransaction(): Promise<void> {
+    if (!this.wallet || !this.walletAddress) return;
+
     try {
-      this.ui.updateConnectionStatus('Tapping out...');
+      this.ui.showLoading('Sign transaction to withdraw your stake...');
       
-      // Send tap out message to server
-      const tapOutMsg: TapOutMessage = {
-        type: MessageType.TAPOUT,
-        matchId: CURRENT_MATCH_ID,
-      };
-      
-      // Note: We need to add a method to send custom messages to the game
-      // For now, the server will handle removal when we call tapOut on contract
-      
-      // Call contract
+      // Call contract to withdraw
       const success = await this.wallet.tapOut(CURRENT_MATCH_ID);
       
       if (success) {
-        console.log('✅ Successfully tapped out');
-        this.ui.updateConnectionStatus('Connected');
-        this.isPlaying = false;
-        this.ui.showStartScreen();
-        this.stopStatsUpdates();
+        console.log('✅ Successfully tapped out and withdrawn stake');
+        this.ui.hideLoading();
         
         // Update balance
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
+        
+        // Return to home screen
+        this.isSpectating = false;
+        this.ui.showStartScreen();
       } else {
-        alert('Failed to tap out. See console for details.');
-        this.ui.updateConnectionStatus('Connected');
+        // Transaction failed
+        this.ui.showLoadingWithRetry('Transaction failed. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error tapping out:', error);
-      alert('Failed to tap out. See console for details.');
-      this.ui.updateConnectionStatus('Connected');
+      
+      // Check if user rejected the transaction
+      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+        this.ui.showLoadingWithRetry('Transaction rejected. Click retry to sign again.');
+      } else {
+        this.ui.showLoadingWithRetry('Transaction failed. Click retry to try again.');
+      }
     }
+  }
+
+  private isSpectatorMode(): boolean {
+    return this.isSpectating || !this.isPlaying;
   }
 
   private startStatsUpdates(): void {
@@ -276,12 +308,22 @@ class GameClient {
     const state = this.game.getCurrentState();
     if (!state) return;
 
+    const playerId = this.game.getPlayerId();
+    const isSpectator = this.isSpectatorMode();
+
     // Get interpolated state for smoother visuals
     const interpolatedState = this.game.getInterpolatedState();
-    if (interpolatedState) {
-      this.renderer.render(interpolatedState, this.game.getPlayerId());
+    const renderState = interpolatedState || state;
+
+    if (isSpectator) {
+      // Filter out dead player's snake from rendering
+      const filteredState = {
+        ...renderState,
+        snakes: renderState.snakes.filter((snake: any) => snake.id !== playerId)
+      };
+      this.renderer.render(filteredState, null);
     } else {
-      this.renderer.render(state, this.game.getPlayerId());
+      this.renderer.render(renderState, playerId);
     }
   }
 }

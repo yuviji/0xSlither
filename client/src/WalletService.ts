@@ -107,24 +107,20 @@ export class WalletService {
       throw new Error('StakeArena not initialized');
     }
     console.log('Entering match', matchId, amount);
-    try {
-      const amountWei = ethers.parseEther(amount);
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      console.log('Amount in wei:', amountWei);
-      console.log('Match ID as bytes32:', matchIdBytes32);
-      console.log(`Entering match ${matchId} with ${amount} SSS...`);
-      // Send SSS with the transaction (no approval needed!)
-      const tx = await this.stakeArena.enterMatch(matchIdBytes32, { value: amountWei });
-      console.log('Transaction:', tx);
-      await tx.wait();
-      
-      console.log('Successfully entered match');
-      return true;
-    } catch (error) {
-      console.error('Error entering match:', error);
-      return false;
-    }
+    
+    const amountWei = ethers.parseEther(amount);
+    // Convert string match ID to bytes32
+    const matchIdBytes32 = ethers.id(matchId);
+    console.log('Amount in wei:', amountWei);
+    console.log('Match ID as bytes32:', matchIdBytes32);
+    console.log(`Entering match ${matchId} with ${amount} SSS...`);
+    // Send SSS with the transaction (no approval needed!)
+    const tx = await this.stakeArena.enterMatch(matchIdBytes32, { value: amountWei });
+    console.log('Transaction:', tx);
+    await tx.wait();
+    
+    console.log('Successfully entered match');
+    return true;
   }
 
   async tapOut(matchId: string): Promise<boolean> {
@@ -132,19 +128,14 @@ export class WalletService {
       throw new Error('StakeArena not initialized');
     }
 
-    try {
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      console.log(`Tapping out of match ${matchId}...`);
-      const tx = await this.stakeArena.tapOut(matchIdBytes32);
-      await tx.wait();
-      
-      console.log('Successfully tapped out');
-      return true;
-    } catch (error) {
-      console.error('Error tapping out:', error);
-      return false;
-    }
+    // Convert string match ID to bytes32
+    const matchIdBytes32 = ethers.id(matchId);
+    console.log(`Tapping out of match ${matchId}...`);
+    const tx = await this.stakeArena.tapOut(matchIdBytes32);
+    await tx.wait();
+    
+    console.log('Successfully tapped out');
+    return true;
   }
 
   async getOnChainLeaderboard(): Promise<Array<{ address: string; score: number }>> {

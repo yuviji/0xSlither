@@ -19,6 +19,9 @@ export class UI {
   private currentStake: HTMLElement;
   private gameControls: HTMLElement;
   private tapOutButton: HTMLButtonElement;
+  private loadingOverlay: HTMLElement;
+  private loadingMessage: HTMLElement;
+  private retryButton: HTMLButtonElement;
 
   constructor() {
     this.startScreen = document.getElementById('startScreen')!;
@@ -39,6 +42,9 @@ export class UI {
     this.currentStake = document.getElementById('currentStake')!;
     this.gameControls = document.getElementById('gameControls')!;
     this.tapOutButton = document.getElementById('tapOutButton') as HTMLButtonElement;
+    this.loadingOverlay = document.getElementById('loadingOverlay')!;
+    this.loadingMessage = document.getElementById('loadingMessage')!;
+    this.retryButton = document.getElementById('retryButton') as HTMLButtonElement;
   }
 
   showStartScreen(): void {
@@ -172,6 +178,28 @@ export class UI {
 
   hideGameControls(): void {
     this.gameControls.classList.add('hidden');
+  }
+
+  showLoading(message: string): void {
+    this.loadingMessage.textContent = message;
+    this.retryButton.classList.add('hidden');
+    this.loadingOverlay.classList.remove('hidden');
+  }
+
+  hideLoading(): void {
+    this.loadingOverlay.classList.add('hidden');
+  }
+
+  showLoadingWithRetry(message: string): void {
+    this.loadingMessage.textContent = message;
+    this.retryButton.classList.remove('hidden');
+    this.loadingOverlay.classList.remove('hidden');
+  }
+
+  onRetry(callback: () => void): void {
+    this.retryButton.addEventListener('click', () => {
+      callback();
+    });
   }
 }
 

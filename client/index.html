@@ -280,6 +280,67 @@
       color: #4ECDC4;
       font-weight: bold;
     }
+
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      pointer-events: auto;
+    }
+
+    .loading-content {
+      text-align: center;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      border: 6px solid rgba(78, 205, 196, 0.2);
+      border-top: 6px solid #4ECDC4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #loadingMessage {
+      font-size: 20px;
+      color: #4ECDC4;
+      margin-bottom: 20px;
+    }
+
+    #retryButton {
+      padding: 12px 40px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      background: #ff6b6b;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+
+    #retryButton:hover {
+      background: #ee5a5a;
+      transform: scale(1.05);
+    }
+
+    #retryButton:active {
+      transform: scale(0.95);
+    }
   </style>
 </head>
 <body>
@@ -327,6 +388,14 @@
 
     <div id="gameControls" class="hidden">
       <button id="tapOutButton">Tap Out & Withdraw</button>
+    </div>
+
+    <div id="loadingOverlay" class="hidden">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <div id="loadingMessage">Loading...</div>
+        <button id="retryButton" class="hidden">Retry Transaction</button>
+      </div>
     </div>
   </div>
 

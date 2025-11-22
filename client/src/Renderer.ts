@@ -5,6 +5,7 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
   private camera: Camera;
+  private isSpectatorMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -21,16 +22,25 @@ export class Renderer {
   }
 
   render(state: StateMessage, playerId: string | null): void {
+    // Determine if in spectator mode
+    this.isSpectatorMode = playerId === null;
+
     // Clear canvas
     this.ctx.fillStyle = '#0f3460';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Update camera to follow player
+    // Update camera to follow player if actively playing
     const playerSnake = state.snakes.find((s: any) => s.id === playerId);
     if (playerSnake) {
       this.camera.setTarget({ x: playerSnake.head[0], y: playerSnake.head[1] });
     }
+    // If no player snake, camera stays at last position (don't update target)
     this.camera.update();
+
+    // Apply faded effect if in spectator mode
+    if (this.isSpectatorMode) {
+      this.ctx.globalAlpha = 0.4;
+    }
 
     // Draw world boundaries
     this.drawBoundaries();
@@ -55,6 +65,9 @@ export class Renderer {
     for (const snake of state.snakes) {
       this.drawSnakeName(snake);
     }
+
+    // Reset alpha for UI elements
+    this.ctx.globalAlpha = 1.0;
   }
 
   private drawBoundaries(): void {

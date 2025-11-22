@@ -96,6 +96,11 @@ export class Game {
     this.ws.send(JSON.stringify(message));
   }
 
+  sendCustomMessage(message: any): void {
+    if (!this.connected || !this.ws) return;
+    this.ws.send(JSON.stringify(message));
+  }
+
   onStateUpdate(callback: (state: StateMessage) => void): void {
     this.onStateUpdateCallback = callback;
   }
