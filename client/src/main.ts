@@ -10,7 +10,6 @@ const WS_URL = `ws://${window.location.hostname}:8080`;
 
 // Contract addresses (configure these after deployment)
 const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
-const BLOCKCHAIN_ENABLED = import.meta.env.VITE_BLOCKCHAIN_ENABLED === 'true';
 
 // Match ID (will be provided by server or generated)
 let CURRENT_MATCH_ID = `match-${Date.now()}`;
@@ -36,12 +35,8 @@ class GameClient {
     this.ui = new UI();
     this.game = new Game(WS_URL);
 
-    if (BLOCKCHAIN_ENABLED) {
-      this.wallet = new WalletService();
-      console.log('🔗 Blockchain integration enabled (Native SSS)');
-    } else {
-      console.log('ℹ️  Blockchain integration disabled (set VITE_STAKE_ARENA_ADDRESS)');
-    }
+    // Wallet is now required
+    this.wallet = new WalletService();
 
     this.setupEventHandlers();
     this.ui.showStartScreen();
@@ -75,13 +70,12 @@ class GameClient {
       this.stopStatsUpdates();
     });
 
-    this.ui.onPlay(async (name) => {
-      await this.startPlaying(name);
+    this.ui.onPlay(async () => {
+      await this.startPlaying();
     });
 
     this.ui.onRespawn(async () => {
-      const name = (document.getElementById('nameInput') as HTMLInputElement).value.trim() || 'Anonymous';
-      await this.startPlaying(name);
+      await this.startPlaying();
     });
 
     this.ui.onConnectWallet(async () => {
@@ -95,22 +89,25 @@ class GameClient {
 
   private async connectWallet(): Promise<string | null> {
     if (!this.wallet) {
-      console.log('Wallet service not available');
+      console.error('Wallet service not available');
       return null;
     }
 
     try {
       this.walletAddress = await this.wallet.connectWallet();
       
-      if (this.walletAddress && BLOCKCHAIN_ENABLED) {
-        // Initialize contracts
-        this.wallet.initializeContracts(STAKE_ARENA_ADDRESS);
+      if (this.walletAddress) {
+        // Initialize contracts if blockchain enabled
+        if (STAKE_ARENA_ADDRESS) {
+          this.wallet.initializeContracts(STAKE_ARENA_ADDRESS);
+          console.log('✅ Wallet connected and contracts initialized');
+        } else {
+          console.log('✅ Wallet connected (blockchain features disabled)');
+        }
         
         // Update balance
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
-        
-        console.log('✅ Wallet connected and contracts initialized');
       }
       
       return this.walletAddress;
@@ -120,9 +117,15 @@ class GameClient {
     }
   }
 
-  private async startPlaying(name: string): Promise<void> {
-    // If wallet connected and blockchain enabled, stake first
-    if (this.wallet && this.walletAddress && BLOCKCHAIN_ENABLED) {
+  private async startPlaying(): Promise<void> {
+    // Wallet is required to play
+    if (!this.walletAddress) {
+      alert('Please connect your wallet to play');
+      return;
+    }
+
+    // If blockchain enabled, stake first
+    if (STAKE_ARENA_ADDRESS) {
       const stakeAmount = this.ui.getStakeAmount();
       
       if (parseFloat(stakeAmount) <= 0) {
@@ -135,7 +138,7 @@ class GameClient {
         this.ui.updateConnectionStatus('Entering match...');
         
         // Enter match (no approval needed for native token!)
-        const entered = await this.wallet.enterMatch(CURRENT_MATCH_ID, stakeAmount);
+        const entered = await this.wallet!.enterMatch(CURRENT_MATCH_ID, stakeAmount);
         if (!entered) {
           alert('Failed to enter match');
           this.ui.updateConnectionStatus('Connected');
@@ -152,7 +155,8 @@ class GameClient {
       }
     }
 
-    this.game.join(name, this.walletAddress || undefined);
+    // Use wallet address as the player name
+    this.game.join(this.walletAddress, this.walletAddress);
     this.ui.hideStartScreen();
     this.ui.hideDeathScreen();
     this.isPlaying = true;
@@ -161,15 +165,20 @@ class GameClient {
       this.gameLoop();
     }
 
-    // Start updating on-chain stats if wallet connected
-    if (this.wallet && this.walletAddress && BLOCKCHAIN_ENABLED) {
+    // Start updating on-chain stats if blockchain enabled
+    if (STAKE_ARENA_ADDRESS) {
       this.startStatsUpdates();
     }
   }
 
   private async handleTapOut(): Promise<void> {
-    if (!this.wallet || !this.walletAddress || !BLOCKCHAIN_ENABLED) {
+    if (!this.wallet || !this.walletAddress) {
       console.log('Cannot tap out: wallet not connected');
+      return;
+    }
+
+    if (!STAKE_ARENA_ADDRESS) {
+      console.log('Cannot tap out: blockchain not enabled');
       return;
     }
 
@@ -282,7 +291,8 @@ new GameClient();
 
 console.log('%c0xSlither Game Started!', 'color: #9B59B6; font-size: 20px; font-weight: bold;');
 console.log('Controls: Move your mouse to control your snake');
-if (BLOCKCHAIN_ENABLED) {
+console.log('⚠️  Wallet connection required to play');
+if (STAKE_ARENA_ADDRESS) {
   console.log('🔗 Blockchain features enabled (Native SSS token)');
 } else {
   console.log('ℹ️  Set VITE_STAKE_ARENA_ADDRESS to enable blockchain features');

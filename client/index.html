@@ -288,6 +288,7 @@
   <div id="ui">
     <div id="startScreen">
       <h1>0xSlither</h1>
+      <p style="color: #4ECDC4; margin-bottom: 20px;">Connect your wallet to play</p>
       <div id="walletSection">
         <button id="connectWalletButton">Connect Wallet</button>
         <div id="walletStatus"></div>
@@ -296,9 +297,7 @@
         <input type="number" id="stakeInput" placeholder="Stake amount (SSS)" min="0" step="0.01" value="1" />
         <div id="stakeInfo">Balance: <span id="tokenBalance">0</span> SSS</div>
       </div>
-      <input type="text" id="nameInput" placeholder="Enter your name" maxlength="15" />
-      <br>
-      <button id="playButton">Stake & Play</button>
+      <button id="playButton" disabled>Stake & Play</button>
     </div>
 
     <div id="deathScreen" class="hidden">

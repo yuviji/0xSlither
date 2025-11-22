@@ -6,7 +6,6 @@ export class UI {
   private leaderboard: HTMLElement;
   private leaderboardList: HTMLElement;
   private connectionStatus: HTMLElement;
-  private nameInput: HTMLInputElement;
   private playButton: HTMLButtonElement;
   private respawnButton: HTMLButtonElement;
   private finalScoreElement: HTMLElement;
@@ -27,7 +26,6 @@ export class UI {
     this.leaderboard = document.getElementById('leaderboard')!;
     this.leaderboardList = document.getElementById('leaderboardList')!;
     this.connectionStatus = document.getElementById('connectionStatus')!;
-    this.nameInput = document.getElementById('nameInput') as HTMLInputElement;
     this.playButton = document.getElementById('playButton') as HTMLButtonElement;
     this.respawnButton = document.getElementById('respawnButton') as HTMLButtonElement;
     this.finalScoreElement = document.getElementById('finalScore')!;
@@ -47,7 +45,6 @@ export class UI {
     this.startScreen.classList.remove('hidden');
     this.deathScreen.classList.add('hidden');
     this.leaderboard.classList.add('hidden');
-    this.nameInput.focus();
   }
 
   hideStartScreen(): void {
@@ -83,7 +80,8 @@ export class UI {
     
     state.leaderboard.forEach(([name, score, address]: [string, number, string?], index: number) => {
       const li = document.createElement('li');
-      const displayName = address ? `${name} (${this.shortenAddress(address)})` : name;
+      // Since name is now the wallet address, just display the shortened address
+      const displayName = this.shortenAddress(address || name);
       li.innerHTML = `
         <span class="name">${index + 1}. ${displayName}</span>
         <span class="score">${score}</span>
@@ -97,17 +95,9 @@ export class UI {
     return `${address.slice(0, 6)}…${address.slice(-4)}`;
   }
 
-  onPlay(callback: (name: string) => void): void {
-    const handler = () => {
-      const name = this.nameInput.value.trim() || 'Anonymous';
-      callback(name);
-    };
-
-    this.playButton.addEventListener('click', handler);
-    this.nameInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        handler();
-      }
+  onPlay(callback: () => void): void {
+    this.playButton.addEventListener('click', () => {
+      callback();
     });
   }
 
@@ -131,7 +121,7 @@ export class UI {
       if (address) {
         this.setWalletConnected(address);
       } else {
-        this.walletStatus.textContent = 'Connection failed. Continue as guest.';
+        this.walletStatus.textContent = 'Connection failed. Please try again.';
         this.walletStatus.className = 'error';
       }
     });
@@ -143,14 +133,14 @@ export class UI {
     this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
     this.walletStatus.className = 'success';
     this.stakeSection.classList.remove('hidden');
+    this.playButton.disabled = false;
     this.playButton.textContent = 'Stake & Play';
   }
 
   setWalletNotAvailable(): void {
     this.connectWalletButton.disabled = true;
-    this.walletStatus.textContent = 'No wallet detected. Continue as guest.';
-    this.walletStatus.className = '';
-    this.playButton.textContent = 'Play as Guest';
+    this.walletStatus.textContent = 'No wallet detected. Cannot play.';
+    this.walletStatus.className = 'error';
   }
 
   updateTokenBalance(balance: string): void {

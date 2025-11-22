@@ -72,7 +72,7 @@ export class Game {
     }
   }
 
-  join(name: string, address?: string): void {
+  join(name: string, address: string): void {
     if (!this.connected || !this.ws) return;
 
     const message: JoinMessage = {
@@ -82,8 +82,7 @@ export class Game {
     };
 
     this.ws.send(JSON.stringify(message));
-    const addressLog = address ? ` and wallet ${address}` : '';
-    console.log(`Sent JOIN message with name: ${name}${addressLog}`);
+    console.log(`Sent JOIN message for wallet: ${address}`);
   }
 
   sendInput(targetAngle: number): void {

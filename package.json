@@ -8,9 +8,9 @@
     "shared"
   ],
   "scripts": {
-    "server": "pnpm run dev --workspace=server",
-    "client": "pnpm run dev --workspace=client",
-    "dev": "pnpm run server & pnpm run client"
+    "server": "pnpm --filter server dev",
+    "client": "pnpm --filter client dev",
+    "dev": "pnpm --filter server dev & pnpm --filter client dev"
   }
 }
 
