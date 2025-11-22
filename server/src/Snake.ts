@@ -137,8 +137,8 @@ export class SnakeEntity implements Snake {
     return this.positionHistory[this.positionHistory.length - 1] || null;
   }
 
-  grow(): void {
-    this.length += SNAKE_GROWTH_PER_PELLET;
+  grow(amount: number = SNAKE_GROWTH_PER_PELLET): void {
+    this.length += amount;
   }
 
   kill(): void {

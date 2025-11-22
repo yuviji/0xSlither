@@ -55,7 +55,10 @@ export class GameServer {
 
       for (const pellet of this.pelletManager.getPellets()) {
         if (CollisionDetection.checkPelletCollision(snake, pellet)) {
-          snake.grow();
+          // Growth is proportional to pellet size
+          // Min size (4) gives 2 segments, max size (8) gives 4 segments
+          const growthAmount = Math.round(pellet.size / 2);
+          snake.grow(growthAmount);
           this.pelletManager.removePellet(pellet.id);
         }
       }

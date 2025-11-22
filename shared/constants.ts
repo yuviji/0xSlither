@@ -15,7 +15,7 @@ export const SNAKE_INITIAL_LENGTH = 5;
 export const SNAKE_SEGMENT_SPACING = 15; // Distance between segments
 export const SNAKE_HEAD_RADIUS = 10;
 export const SNAKE_SEGMENT_RADIUS = 8;
-export const SNAKE_GROWTH_PER_PELLET = 3; // Segments added per pellet
+export const SNAKE_GROWTH_PER_PELLET = 3; // Default segments added per pellet (actual growth varies by pellet size)
 
 // Pellet settings
 export const PELLET_COUNT = 500;
