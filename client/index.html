@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Slither.io Core</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -12,15 +15,16 @@
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Orbitron', monospace, -apple-system, sans-serif;
       overflow: hidden;
-      background: #1a1a2e;
-      color: white;
+      background: #000000;
+      color: #00ff88;
+      letter-spacing: 0.5px;
     }
 
     #gameCanvas {
       display: block;
-      background: #0f3460;
+      background: #0a0e0a;
     }
 
     #ui {
@@ -45,10 +49,20 @@
     }
 
     #startScreen h1, #deathScreen h1 {
-      font-size: 48px;
-      margin-bottom: 20px;
-      color: #4ECDC4;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      font-size: 52px;
+      margin-bottom: 15px;
+      color: #00ff88;
+      text-shadow: 0 0 20px rgba(0, 255, 136, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+      font-weight: 900;
+      letter-spacing: 3px;
+    }
+
+    #startScreen p, #deathScreen p {
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
 
     #startScreen input {
@@ -62,18 +76,22 @@
 
     #startScreen button, #deathScreen button {
       padding: 12px 40px;
-      font-size: 18px;
-      border: none;
+      font-size: 16px;
+      border: 2px solid #00ff88;
       border-radius: 5px;
-      background: #4ECDC4;
-      color: white;
+      background: linear-gradient(135deg, #003322 0%, #001a11 100%);
+      color: #00ff88;
       cursor: pointer;
-      font-weight: bold;
-      transition: background 0.3s;
+      font-weight: 700;
+      transition: all 0.3s;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
 
     #startScreen button:hover, #deathScreen button:hover {
-      background: #45B7D1;
+      background: linear-gradient(135deg, #004433 0%, #002211 100%);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
       transform: scale(1.05);
     }
 
@@ -81,51 +99,123 @@
       transform: scale(0.95);
     }
 
+    #startScreen button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: rgba(0, 255, 136, 0.3);
+      background: linear-gradient(135deg, #001a11 0%, #000a05 100%);
+      box-shadow: 0 0 5px rgba(0, 255, 136, 0.1);
+    }
+
+    #startScreen button:disabled:hover {
+      transform: none;
+      box-shadow: 0 0 5px rgba(0, 255, 136, 0.1);
+    }
+
     #walletSection {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
     #connectWalletButton {
-      padding: 10px 30px;
+      padding: 12px 40px;
       font-size: 16px;
-      background: #9B59B6;
-      margin-bottom: 10px;
+      background: linear-gradient(135deg, #003322 0%, #001a11 100%);
+      border: 2px solid #00ff88;
+      margin-bottom: 15px;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
 
     #connectWalletButton:hover {
-      background: #8E44AD;
+      background: linear-gradient(135deg, #004433 0%, #002211 100%);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+      transform: scale(1.05);
+    }
+
+    #connectWalletButton:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
 
     #walletStatus {
       font-size: 14px;
-      color: #4ECDC4;
+      color: #00ff88;
       margin-top: 5px;
       min-height: 20px;
     }
 
     #walletStatus.error {
-      color: #ff6b6b;
+      color: #ff3366;
     }
 
     #walletStatus.success {
-      color: #4ECDC4;
+      color: #00ff88;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
     }
 
     #stakeSection {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
-    #stakeSection input {
-      padding: 8px 15px;
+    #balanceDisplay {
+      font-size: 18px;
+      color: #00ff88;
+      margin-bottom: 15px;
+      font-weight: 600;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+      letter-spacing: 1px;
+    }
+
+    #balanceDisplay .amount {
+      font-size: 22px;
+      font-weight: 700;
+      text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+    }
+
+    #stakeButton {
+      padding: 12px 40px;
       font-size: 16px;
-      width: 200px;
+      background: linear-gradient(135deg, #003322 0%, #001a11 100%);
+      border: 2px solid #00ff88;
       margin-bottom: 10px;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #00ff88;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: all 0.3s;
     }
 
-    #stakeInfo {
-      font-size: 12px;
-      color: #aaa;
+    #stakeButton:hover:not(:disabled) {
+      background: linear-gradient(135deg, #004433 0%, #002211 100%);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+      transform: scale(1.05);
+    }
+
+    #stakeButton:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: rgba(0, 255, 136, 0.3);
+      background: linear-gradient(135deg, #001a11 0%, #000a05 100%);
+      box-shadow: 0 0 5px rgba(0, 255, 136, 0.1);
+    }
+
+    #stakeButton:disabled:hover {
+      transform: none;
+      box-shadow: 0 0 5px rgba(0, 255, 136, 0.1);
+    }
+
+    .stake-info {
+      font-size: 14px;
+      color: #00ff88;
       margin-top: 5px;
+      opacity: 0.7;
+      letter-spacing: 0.5px;
     }
 
     #gameControls {
@@ -141,17 +231,19 @@
     #gameControls button {
       padding: 10px 20px;
       font-size: 14px;
-      border: none;
+      border: 2px solid #ff3366;
       border-radius: 5px;
-      background: rgba(231, 76, 60, 0.9);
-      color: white;
+      background: rgba(20, 5, 10, 0.9);
+      color: #ff3366;
       cursor: pointer;
       font-weight: bold;
       transition: all 0.3s;
+      box-shadow: 0 0 10px rgba(255, 51, 102, 0.3);
     }
 
     #gameControls button:hover {
-      background: rgba(231, 76, 60, 1);
+      background: rgba(40, 10, 20, 1);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.6);
       transform: scale(1.05);
     }
 
@@ -164,19 +256,23 @@
       position: absolute;
       top: 100px;
       right: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.85);
       padding: 15px 20px;
       border-radius: 8px;
       min-width: 200px;
-      border: 2px solid rgba(155, 89, 182, 0.3);
+      border: 2px solid rgba(0, 255, 136, 0.4);
       backdrop-filter: blur(5px);
       pointer-events: auto;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
     }
 
     #onChainStats h3 {
-      font-size: 16px;
+      font-size: 14px;
       margin-bottom: 10px;
-      color: #9B59B6;
+      color: #00ff88;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+      font-weight: 700;
+      letter-spacing: 2px;
     }
 
     #onChainStats .stat {
@@ -192,30 +288,37 @@
     }
 
     #onChainStats .label {
-      color: #aaa;
+      color: #00ff88;
+      opacity: 0.7;
     }
 
     #onChainStats .value {
-      color: #9B59B6;
+      color: #00ff88;
       font-weight: bold;
+      text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+      font-variant-numeric: tabular-nums;
     }
 
     #leaderboard {
       position: absolute;
       top: 20px;
       right: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.85);
       padding: 15px 20px;
       border-radius: 8px;
       min-width: 200px;
-      border: 2px solid rgba(78, 205, 196, 0.3);
+      border: 2px solid rgba(0, 255, 136, 0.4);
       backdrop-filter: blur(5px);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
     }
 
     #leaderboard h2 {
-      font-size: 20px;
+      font-size: 18px;
       margin-bottom: 10px;
-      color: #4ECDC4;
+      color: #00ff88;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+      font-weight: 700;
+      letter-spacing: 2px;
     }
 
     #leaderboard ol {
@@ -236,15 +339,18 @@
     }
 
     #leaderboard li:first-child .name {
-      color: #FFD700;
+      color: #00ffaa;
+      text-shadow: 0 0 10px rgba(0, 255, 170, 0.6);
     }
 
     #leaderboard li:nth-child(2) .name {
-      color: #C0C0C0;
+      color: #00dd88;
+      text-shadow: 0 0 8px rgba(0, 221, 136, 0.4);
     }
 
     #leaderboard li:nth-child(3) .name {
-      color: #CD7F32;
+      color: #00bb66;
+      text-shadow: 0 0 6px rgba(0, 187, 102, 0.3);
     }
 
     #leaderboard .name {
@@ -252,19 +358,23 @@
     }
 
     #leaderboard .score {
-      color: #4ECDC4;
+      color: #00ff88;
+      text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+      font-variant-numeric: tabular-nums;
     }
 
     #connectionStatus {
       position: absolute;
       top: 20px;
       left: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.85);
       padding: 10px 15px;
       border-radius: 5px;
       font-size: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(0, 255, 136, 0.3);
       transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+      color: #00ff88;
     }
 
     .hidden {
@@ -277,8 +387,11 @@
     }
 
     #deathScreen .score {
-      color: #4ECDC4;
+      color: #00ff88;
       font-weight: bold;
+      text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+      font-size: 32px;
+      font-variant-numeric: tabular-nums;
     }
 
     #loadingOverlay {
@@ -303,10 +416,11 @@
       width: 60px;
       height: 60px;
       margin: 0 auto 20px;
-      border: 6px solid rgba(78, 205, 196, 0.2);
-      border-top: 6px solid #4ECDC4;
+      border: 6px solid rgba(0, 255, 136, 0.2);
+      border-top: 6px solid #00ff88;
       border-radius: 50%;
       animation: spin 1s linear infinite;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
     }
 
     @keyframes spin {
@@ -315,26 +429,31 @@
     }
 
     #loadingMessage {
-      font-size: 20px;
-      color: #4ECDC4;
+      font-size: 18px;
+      color: #00ff88;
       margin-bottom: 20px;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+      font-weight: 600;
+      letter-spacing: 1px;
     }
 
     #retryButton {
       padding: 12px 40px;
       font-size: 18px;
-      border: none;
+      border: 2px solid #00ff88;
       border-radius: 5px;
-      background: #ff6b6b;
-      color: white;
+      background: linear-gradient(135deg, #003322 0%, #001a11 100%);
+      color: #00ff88;
       cursor: pointer;
       font-weight: bold;
-      transition: background 0.3s;
+      transition: all 0.3s;
       margin-top: 10px;
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
     }
 
     #retryButton:hover {
-      background: #ee5a5a;
+      background: linear-gradient(135deg, #004433 0%, #002211 100%);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
       transform: scale(1.05);
     }
 
@@ -349,16 +468,19 @@
   <div id="ui">
     <div id="startScreen">
       <h1>0xSlither</h1>
-      <p style="color: #4ECDC4; margin-bottom: 20px;">Connect your wallet to play</p>
+      <p style="color: #00ff88; text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);">Connect your wallet to play</p>
       <div id="walletSection">
         <button id="connectWalletButton">Connect Wallet</button>
         <div id="walletStatus"></div>
       </div>
       <div id="stakeSection" class="hidden">
-        <input type="number" id="stakeInput" placeholder="Stake amount (SSS)" min="0" step="0.01" value="1" />
-        <div id="stakeInfo">Balance: <span id="tokenBalance">0</span> SSS</div>
+        <div id="balanceDisplay">
+          Balance: <span class="amount" id="tokenBalance">0</span> SSS
+        </div>
+        <button id="stakeButton" disabled>Stake 1 SSS</button>
+        <div class="stake-info">Required to enter the game</div>
       </div>
-      <button id="playButton" disabled>Stake & Play</button>
+      <button id="playButton" class="hidden" disabled>Play</button>
     </div>
 
     <div id="deathScreen" class="hidden">

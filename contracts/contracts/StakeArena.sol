@@ -114,8 +114,9 @@ contract StakeArena is Ownable, ReentrancyGuard {
     /**
      * @dev Player voluntarily exits match and withdraws stake
      * @param matchId Match identifier
+     * @param score Player's final score in the match
      */
-    function tapOut(bytes32 matchId) external nonReentrant {
+    function tapOut(bytes32 matchId, uint256 score) external nonReentrant {
         require(activeInMatch[matchId][msg.sender], "Not active in match");
         require(!matches[matchId].finalized, "Match finalized");
 
@@ -124,6 +125,13 @@ contract StakeArena is Ownable, ReentrancyGuard {
 
         stakeBalance[matchId][msg.sender] = 0;
         activeInMatch[matchId][msg.sender] = false;
+
+        // Update best score if this score is higher
+        if (score > bestScore[msg.sender]) {
+            bestScore[msg.sender] = score;
+            _updateLeaderboard(msg.sender, score);
+            emit BestScoreUpdated(msg.sender, score);
+        }
 
         // Send SSS back to player
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");

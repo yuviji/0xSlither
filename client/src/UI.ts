@@ -12,7 +12,7 @@ export class UI {
   private connectWalletButton: HTMLButtonElement;
   private walletStatus: HTMLElement;
   private stakeSection: HTMLElement;
-  private stakeInput: HTMLInputElement;
+  private stakeButton: HTMLButtonElement;
   private tokenBalance: HTMLElement;
   private onChainStats: HTMLElement;
   private bestScore: HTMLElement;
@@ -35,7 +35,7 @@ export class UI {
     this.connectWalletButton = document.getElementById('connectWalletButton') as HTMLButtonElement;
     this.walletStatus = document.getElementById('walletStatus')!;
     this.stakeSection = document.getElementById('stakeSection')!;
-    this.stakeInput = document.getElementById('stakeInput') as HTMLInputElement;
+    this.stakeButton = document.getElementById('stakeButton') as HTMLButtonElement;
     this.tokenBalance = document.getElementById('tokenBalance')!;
     this.onChainStats = document.getElementById('onChainStats')!;
     this.bestScore = document.getElementById('bestScore')!;
@@ -73,11 +73,17 @@ export class UI {
     this.connectionStatus.textContent = status;
     
     if (status === 'Connected') {
-      this.connectionStatus.style.background = 'rgba(0, 255, 0, 0.3)';
+      this.connectionStatus.style.background = 'rgba(0, 255, 136, 0.2)';
+      this.connectionStatus.style.borderColor = 'rgba(0, 255, 136, 0.5)';
+      this.connectionStatus.style.boxShadow = '0 0 15px rgba(0, 255, 136, 0.3)';
     } else if (status === 'Disconnected') {
-      this.connectionStatus.style.background = 'rgba(255, 0, 0, 0.3)';
+      this.connectionStatus.style.background = 'rgba(255, 51, 102, 0.2)';
+      this.connectionStatus.style.borderColor = 'rgba(255, 51, 102, 0.5)';
+      this.connectionStatus.style.boxShadow = '0 0 15px rgba(255, 51, 102, 0.3)';
     } else {
-      this.connectionStatus.style.background = 'rgba(255, 255, 0, 0.3)';
+      this.connectionStatus.style.background = 'rgba(255, 204, 0, 0.2)';
+      this.connectionStatus.style.borderColor = 'rgba(255, 204, 0, 0.5)';
+      this.connectionStatus.style.boxShadow = '0 0 15px rgba(255, 204, 0, 0.3)';
     }
   }
 
@@ -139,8 +145,21 @@ export class UI {
     this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
     this.walletStatus.className = 'success';
     this.stakeSection.classList.remove('hidden');
+    this.stakeButton.disabled = false;
+  }
+
+  setStaked(): void {
+    this.stakeButton.textContent = '✓ Staked';
+    this.stakeButton.disabled = true;
+    this.playButton.classList.remove('hidden');
     this.playButton.disabled = false;
-    this.playButton.textContent = 'Stake & Play';
+  }
+
+  resetStakeState(): void {
+    this.stakeButton.textContent = 'Stake 1 SSS';
+    this.stakeButton.disabled = false;
+    this.playButton.classList.add('hidden');
+    this.playButton.disabled = true;
   }
 
   setWalletNotAvailable(): void {
@@ -154,7 +173,13 @@ export class UI {
   }
 
   getStakeAmount(): string {
-    return this.stakeInput.value || '0';
+    return '1'; // Fixed stake amount
+  }
+
+  onStake(callback: () => void): void {
+    this.stakeButton.addEventListener('click', () => {
+      callback();
+    });
   }
 
   updateOnChainStats(bestScore: number, currentStake: string): void {

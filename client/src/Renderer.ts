@@ -25,8 +25,8 @@ export class Renderer {
     // Determine if in spectator mode
     this.isSpectatorMode = playerId === null;
 
-    // Clear canvas
-    this.ctx.fillStyle = '#0f3460';
+    // Clear canvas with crypto black background
+    this.ctx.fillStyle = '#0a0e0a';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Update camera to follow player if actively playing
@@ -75,11 +75,17 @@ export class Renderer {
     const topLeft = this.camera.worldToScreen(0, 0, this.canvas.width, this.canvas.height);
     const bottomRight = this.camera.worldToScreen(WORLD_WIDTH, WORLD_HEIGHT, this.canvas.width, this.canvas.height);
 
-    this.ctx.strokeStyle = '#ff6b6b';
+    this.ctx.strokeStyle = '#00ff88';
     this.ctx.lineWidth = 4;
     this.ctx.setLineDash([20, 10]);
     this.ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
     this.ctx.setLineDash([]);
+    
+    // Add glowing effect
+    this.ctx.shadowColor = 'rgba(0, 255, 136, 0.5)';
+    this.ctx.shadowBlur = 10;
+    this.ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    this.ctx.shadowBlur = 0;
 
     // Add a semi-transparent overlay outside boundaries
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -109,7 +115,7 @@ export class Renderer {
     const endX = startX + this.canvas.width + gridSize;
     const endY = startY + this.canvas.height + gridSize;
 
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    this.ctx.strokeStyle = 'rgba(0, 255, 136, 0.08)';
     this.ctx.lineWidth = 1;
 
     for (let x = startX; x < endX; x += gridSize) {
@@ -242,7 +248,7 @@ export class Renderer {
       return;
     }
 
-    this.ctx.font = 'bold 14px Arial';
+    this.ctx.font = '600 13px Orbitron, monospace, sans-serif';
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'bottom';
 

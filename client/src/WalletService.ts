@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
   'function enterMatch(bytes32 matchId) external payable',
-  'function tapOut(bytes32 matchId) external',
+  'function tapOut(bytes32 matchId, uint256 score) external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
   'function bestScore(address player) external view returns (uint256)',
   'function getStake(bytes32 matchId, address player) external view returns (uint256)',
@@ -123,15 +123,15 @@ export class WalletService {
     return true;
   }
 
-  async tapOut(matchId: string): Promise<boolean> {
+  async tapOut(matchId: string, score: number): Promise<boolean> {
     if (!this.stakeArena) {
       throw new Error('StakeArena not initialized');
     }
 
     // Convert string match ID to bytes32
     const matchIdBytes32 = ethers.id(matchId);
-    console.log(`Tapping out of match ${matchId}...`);
-    const tx = await this.stakeArena.tapOut(matchIdBytes32);
+    console.log(`Tapping out of match ${matchId} with score ${score}...`);
+    const tx = await this.stakeArena.tapOut(matchIdBytes32, score);
     await tx.wait();
     
     console.log('Successfully tapped out');

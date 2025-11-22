@@ -75,12 +75,17 @@ class GameClient {
       this.stopStatsUpdates();
     });
 
+    this.ui.onStake(async () => {
+      await this.handleStake();
+    });
+
     this.ui.onPlay(async () => {
       await this.startPlaying();
     });
 
     this.ui.onRespawn(async () => {
-      await this.startPlaying();
+      this.ui.resetStakeState();
+      await this.handleStake();
     });
 
     this.ui.onConnectWallet(async () => {
@@ -92,7 +97,10 @@ class GameClient {
     });
 
     this.ui.onRetry(async () => {
-      await this.attemptTapOutTransaction();
+      // Get score again in case we need to retry
+      const playerSnake = this.game.getPlayerSnake();
+      const currentScore = playerSnake ? playerSnake.segments.length : 0;
+      await this.attemptTapOutTransaction(currentScore);
     });
   }
 
@@ -129,22 +137,17 @@ class GameClient {
     }
   }
 
-  private async startPlaying(): Promise<void> {
-    // Wallet is required to play
+  private async handleStake(): Promise<void> {
+    // Wallet is required to stake
     if (!this.walletAddress) {
-      alert('Please connect your wallet to play');
+      alert('Please connect your wallet first');
       return;
     }
 
-    // If blockchain enabled, stake first
+    // If blockchain enabled, stake
     if (STAKE_ARENA_ADDRESS) {
-      const stakeAmount = this.ui.getStakeAmount();
+      const stakeAmount = '1'; // Fixed stake amount
       
-      if (parseFloat(stakeAmount) <= 0) {
-        alert('Please enter a valid stake amount');
-        return;
-      }
-
       try {
         console.log(`Staking ${stakeAmount} SSS...`);
         this.ui.showLoading(`Staking ${stakeAmount} SSS... Please sign the transaction in MetaMask.`);
@@ -154,18 +157,31 @@ class GameClient {
 
         console.log('✅ Successfully staked and entered match');
         this.ui.hideLoading();
+        this.ui.setStaked();
+        
+        // Update balance
+        const balance = await this.wallet!.getTokenBalance();
+        this.ui.updateTokenBalance(balance);
       } catch (error: any) {
         console.error('Error during stake process:', error);
         this.ui.hideLoading();
         
         // Check if user rejected the transaction
         if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
-          alert('Transaction rejected. Please try again to play.');
+          alert('Transaction rejected. Please stake to play.');
         } else {
           alert('Failed to stake tokens. See console for details.');
         }
         return;
       }
+    }
+  }
+
+  private async startPlaying(): Promise<void> {
+    // Wallet is required to play
+    if (!this.walletAddress) {
+      alert('Please connect your wallet to play');
+      return;
     }
 
     // Use wallet address as the player name
@@ -195,6 +211,10 @@ class GameClient {
     const confirmed = confirm('Are you sure you want to tap out and withdraw your stake?');
     if (!confirmed) return;
 
+    // Get current score before disconnecting
+    const playerSnake = this.game.getPlayerSnake();
+    const currentScore = playerSnake ? playerSnake.segments.length : 0;
+
     // Step 1: Immediately disconnect from game (remove player from server)
     this.isPlaying = false;
     this.isSpectating = true;
@@ -209,29 +229,35 @@ class GameClient {
     };
     this.game.sendCustomMessage(tapOutMsg);
 
-    // Step 2: Attempt to withdraw stake via blockchain transaction
-    await this.attemptTapOutTransaction();
+    // Step 2: Attempt to withdraw stake via blockchain transaction with score
+    await this.attemptTapOutTransaction(currentScore);
   }
 
-  private async attemptTapOutTransaction(): Promise<void> {
+  private async attemptTapOutTransaction(score: number): Promise<void> {
     if (!this.wallet || !this.walletAddress) return;
 
     try {
-      this.ui.showLoading('Sign transaction to withdraw your stake...');
+      this.ui.showLoading('Sign transaction to withdraw your stake and record your score...');
       
-      // Call contract to withdraw
-      const success = await this.wallet.tapOut(CURRENT_MATCH_ID);
+      // Call contract to withdraw with score
+      const success = await this.wallet.tapOut(CURRENT_MATCH_ID, score);
       
       if (success) {
-        console.log('✅ Successfully tapped out and withdrawn stake');
+        console.log(`✅ Successfully tapped out, withdrawn stake, and recorded score: ${score}`);
         this.ui.hideLoading();
         
-        // Update balance
+        // Update balance and stats
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
         
+        // Update best score immediately
+        const bestScore = await this.wallet.getBestScore();
+        const currentStake = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
+        this.ui.updateOnChainStats(bestScore, currentStake);
+        
         // Return to home screen
         this.isSpectating = false;
+        this.ui.resetStakeState();
         this.ui.showStartScreen();
       } else {
         // Transaction failed
