@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
   'function reportEat(bytes32 matchId, address eater, address eaten) external',
+  'function reportSelfDeath(bytes32 matchId, address player) external',
   'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId) external',
   'function finalizeMatch(bytes32 matchId, address[] calldata players, uint256[] calldata scores, address winner) external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
@@ -10,6 +11,7 @@ const STAKE_ARENA_ABI = [
   'function getStake(bytes32 matchId, address player) external view returns (uint256)',
   'function isActive(bytes32 matchId, address player) external view returns (bool)',
   'event EatLoot(bytes32 indexed matchId, address indexed eater, address indexed eaten, uint256 amountTransferred, uint256 timestamp)',
+  'event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp)',
   'event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp)',
 ];
 
@@ -79,6 +81,34 @@ export class BlockchainService {
       );
       const receipt = await tx.wait();
       console.log(`[Blockchain] reportEat confirmed: ${receipt.hash}`);
+      return receipt;
+    }, description);
+
+    this.pendingTxs.push({ promise: txPromise, description });
+    this.cleanupPendingTxs();
+  }
+
+  /**
+   * Report that a player died from self-inflicted causes
+   * (wall collision, eating self, etc.) - stake goes to server
+   * Non-blocking, fire-and-forget with retry logic
+   */
+  async reportSelfDeath(
+    matchId: string,
+    playerAddress: string
+  ): Promise<void> {
+    const description = `reportSelfDeath: ${playerAddress.slice(0, 8)} died in match ${matchId.slice(0, 10)}`;
+    
+    const txPromise = this.executeWithRetry(async () => {
+      console.log(`[Blockchain] ${description}`);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      const tx = await this.stakeArena.reportSelfDeath(
+        matchIdBytes32,
+        playerAddress
+      );
+      const receipt = await tx.wait();
+      console.log(`[Blockchain] reportSelfDeath confirmed: ${receipt.hash}`);
       return receipt;
     }, description);
 

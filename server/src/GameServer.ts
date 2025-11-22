@@ -96,6 +96,19 @@ export class GameServer {
                 .catch(err => console.error('Error reporting eat to blockchain:', err));
             }
           }
+        } else {
+          // Self-collision or no killer - report self death to blockchain
+          console.log(`${victim.name} died from self-collision`);
+          if (this.blockchain && this.matchId && victim.address) {
+            // Check if player is active before reporting self death
+            this.blockchain.isActive(this.matchId, victim.address)
+              .then(isActive => {
+                if (isActive && this.blockchain) {
+                  return this.blockchain.reportSelfDeath(this.matchId as string, victim.address as string);
+                }
+              })
+              .catch(err => console.error('Error reporting self death to blockchain:', err));
+          }
         }
       }
     }
@@ -103,7 +116,20 @@ export class GameServer {
     // Check world bounds
     for (const snake of this.snakes.values()) {
       if (snake.alive && CollisionDetection.checkWorldBounds(snake, WORLD_WIDTH, WORLD_HEIGHT)) {
+        console.log(`${snake.name} died from wall collision`);
         snake.kill();
+        
+        // Report wall collision death to blockchain
+        if (this.blockchain && this.matchId && snake.address) {
+          // Check if player is active before reporting self death
+          this.blockchain.isActive(this.matchId, snake.address)
+            .then(isActive => {
+              if (isActive && this.blockchain && snake.address) {
+                return this.blockchain.reportSelfDeath(this.matchId as string, snake.address as string);
+              }
+            })
+            .catch(err => console.error('Error reporting wall death to blockchain:', err));
+        }
       }
     }
   }

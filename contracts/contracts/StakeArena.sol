@@ -49,6 +49,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
         uint256 timestamp
     );
     event TappedOut(bytes32 indexed matchId, address indexed player, uint256 amountWithdrawn);
+    event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp);
     event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId);
     event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp);
     event BestScoreUpdated(address indexed player, uint256 newScore);
@@ -109,6 +110,32 @@ contract StakeArena is Ownable, ReentrancyGuard {
         activeInMatch[matchId][eaten] = false;
 
         emit EatLoot(matchId, eater, eaten, lootAmount, block.timestamp);
+    }
+
+    /**
+     * @dev Server reports that a player died from self-inflicted causes
+     * (eating self, wall collision, etc.) - stake goes to server
+     * @param matchId Match identifier
+     * @param player Address of the player who died
+     */
+    function reportSelfDeath(
+        bytes32 matchId,
+        address player
+    ) external onlyAuthorizedServer nonReentrant {
+        require(activeInMatch[matchId][player], "Player not active");
+
+        uint256 stakeAmount = stakeBalance[matchId][player];
+        require(stakeAmount > 0, "No stake to collect");
+
+        // Transfer player's stake to server wallet
+        stakeBalance[matchId][player] = 0;
+        activeInMatch[matchId][player] = false;
+
+        // Send SSS to server wallet
+        (bool success, ) = payable(authorizedServer).call{value: stakeAmount}("");
+        require(success, "Transfer to server failed");
+
+        emit SelfDeath(matchId, player, stakeAmount, block.timestamp);
     }
 
     /**

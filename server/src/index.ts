@@ -177,6 +177,23 @@ class WebSocketGameServer {
     console.log(`Player ${player.id} disconnected`);
     
     if (player.snakeId) {
+      // Get snake info before removing
+      const snake = this.gameServer.getSnake(player.snakeId);
+      
+      // If snake is still alive and has a wallet address, report disconnect as self-death
+      if (snake && snake.alive && snake.address && this.blockchain && this.matchId) {
+        console.log(`Player ${player.id} disconnected with active stake - checking on-chain status`);
+        // Check if player is active on-chain before reporting self death
+        this.blockchain.isActive(this.matchId, snake.address)
+          .then(isActive => {
+            if (isActive && this.blockchain && snake.address) {
+              console.log(`Player ${player.id} has active stake - transferring to server`);
+              return this.blockchain.reportSelfDeath(this.matchId, snake.address);
+            }
+          })
+          .catch(err => console.error('Error reporting disconnect to blockchain:', err));
+      }
+      
       this.gameServer.removeSnake(player.snakeId);
     }
     
