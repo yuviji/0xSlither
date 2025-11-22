@@ -117,10 +117,12 @@ contract StakeArena is Ownable, ReentrancyGuard {
      * (eating self, wall collision, etc.) - stake goes to server
      * @param matchId Match identifier
      * @param player Address of the player who died
+     * @param score Player's final score in the match
      */
     function reportSelfDeath(
         bytes32 matchId,
-        address player
+        address player,
+        uint256 score
     ) external onlyAuthorizedServer nonReentrant {
         require(activeInMatch[matchId][player], "Player not active");
 
@@ -130,6 +132,13 @@ contract StakeArena is Ownable, ReentrancyGuard {
         // Transfer player's stake to server wallet
         stakeBalance[matchId][player] = 0;
         activeInMatch[matchId][player] = false;
+
+        // Update best score if this score is higher
+        if (score > bestScore[player]) {
+            bestScore[player] = score;
+            _updateLeaderboard(player, score);
+            emit BestScoreUpdated(player, score);
+        }
 
         // Send SSS to server wallet
         (bool success, ) = payable(authorizedServer).call{value: stakeAmount}("");

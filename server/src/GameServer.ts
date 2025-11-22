@@ -98,14 +98,14 @@ export class GameServer {
           }
         } else {
           // Self-collision or no killer - report self death to blockchain
-          console.log(`${victim.name} died from self-collision`);
+          console.log(`${victim.name} died from self-collision with score ${victimScore}`);
           if (this.blockchain && this.matchId && victim.address) {
             // Check if player is active before reporting self death
             this.blockchain.isActive(this.matchId, victim.address)
               .then(isActive => {
                 if (isActive && this.blockchain) {
                   console.log(`Reporting self-collision death for ${victim.address} to blockchain`);
-                  return this.blockchain.reportSelfDeath(this.matchId as string, victim.address as string);
+                  return this.blockchain.reportSelfDeath(this.matchId as string, victim.address as string, victimScore);
                 } else {
                   console.log(`Player ${victim.address} not active in match, skipping self-death report`);
                 }
@@ -119,7 +119,8 @@ export class GameServer {
     // Check world bounds
     for (const snake of this.snakes.values()) {
       if (snake.alive && CollisionDetection.checkWorldBounds(snake, WORLD_WIDTH, WORLD_HEIGHT)) {
-        console.log(`${snake.name} died from wall collision`);
+        const snakeScore = snake.getScore();
+        console.log(`${snake.name} died from wall collision with score ${snakeScore}`);
         snake.kill();
         
         // Report wall collision death to blockchain
@@ -129,7 +130,7 @@ export class GameServer {
             .then(isActive => {
               if (isActive && this.blockchain && snake.address) {
                 console.log(`Reporting wall collision death for ${snake.address} to blockchain`);
-                return this.blockchain.reportSelfDeath(this.matchId as string, snake.address as string);
+                return this.blockchain.reportSelfDeath(this.matchId as string, snake.address as string, snakeScore);
               } else {
                 console.log(`Player ${snake.address} not active in match, skipping wall-death report`);
               }

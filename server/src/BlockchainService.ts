@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
   'function reportEat(bytes32 matchId, address eater, address eaten) external',
-  'function reportSelfDeath(bytes32 matchId, address player) external',
+  'function reportSelfDeath(bytes32 matchId, address player, uint256 score) external',
   'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId) external',
   'function finalizeMatch(bytes32 matchId, address[] calldata players, uint256[] calldata scores, address winner) external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
@@ -95,9 +95,10 @@ export class BlockchainService {
    */
   async reportSelfDeath(
     matchId: string,
-    playerAddress: string
+    playerAddress: string,
+    score: number
   ): Promise<void> {
-    const description = `reportSelfDeath: ${playerAddress.slice(0, 8)} died in match ${matchId.slice(0, 10)}`;
+    const description = `reportSelfDeath: ${playerAddress.slice(0, 8)} died with score ${score} in match ${matchId.slice(0, 10)}`;
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
@@ -105,7 +106,8 @@ export class BlockchainService {
       const matchIdBytes32 = ethers.id(matchId);
       const tx = await this.stakeArena.reportSelfDeath(
         matchIdBytes32,
-        playerAddress
+        playerAddress,
+        score
       );
       const receipt = await tx.wait();
       console.log(`[Blockchain] reportSelfDeath confirmed: ${receipt.hash}`);
