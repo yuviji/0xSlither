@@ -103,15 +103,20 @@ export class WalletService {
 
   async enterMatch(matchId: string, amount: string): Promise<boolean> {
     if (!this.stakeArena) {
+      console.error('StakeArena not initialized');
       throw new Error('StakeArena not initialized');
     }
-
+    console.log('Entering match', matchId, amount);
     try {
       const amountWei = ethers.parseEther(amount);
-      
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      console.log('Amount in wei:', amountWei);
+      console.log('Match ID as bytes32:', matchIdBytes32);
       console.log(`Entering match ${matchId} with ${amount} SSS...`);
       // Send SSS with the transaction (no approval needed!)
-      const tx = await this.stakeArena.enterMatch(matchId, { value: amountWei });
+      const tx = await this.stakeArena.enterMatch(matchIdBytes32, { value: amountWei });
+      console.log('Transaction:', tx);
       await tx.wait();
       
       console.log('Successfully entered match');
@@ -128,8 +133,10 @@ export class WalletService {
     }
 
     try {
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
       console.log(`Tapping out of match ${matchId}...`);
-      const tx = await this.stakeArena.tapOut(matchId);
+      const tx = await this.stakeArena.tapOut(matchIdBytes32);
       await tx.wait();
       
       console.log('Successfully tapped out');
@@ -180,7 +187,9 @@ export class WalletService {
     if (!address) return '0';
 
     try {
-      const stake: bigint = await this.stakeArena.getStake(matchId, address);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      const stake: bigint = await this.stakeArena.getStake(matchIdBytes32, address);
       return ethers.formatEther(stake);
     } catch (error) {
       console.error('Error fetching current stake:', error);

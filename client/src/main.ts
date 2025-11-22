@@ -137,7 +137,7 @@ class GameClient {
         console.log(`Staking ${stakeAmount} SSS...`);
         this.ui.updateConnectionStatus('Entering match...');
         
-        // Enter match (no approval needed for native token!)
+        // Enter match
         const entered = await this.wallet!.enterMatch(CURRENT_MATCH_ID, stakeAmount);
         if (!entered) {
           alert('Failed to enter match');

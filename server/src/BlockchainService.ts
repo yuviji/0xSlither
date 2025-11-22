@@ -70,8 +70,10 @@ export class BlockchainService {
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
       const tx = await this.stakeArena.reportEat(
-        matchId,
+        matchIdBytes32,
         eaterAddress,
         eatenAddress
       );
@@ -93,7 +95,10 @@ export class BlockchainService {
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
-      const tx = await this.stakeArena.commitEntropy(matchId, entropyRequestId);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      const entropyBytes32 = ethers.id(entropyRequestId);
+      const tx = await this.stakeArena.commitEntropy(matchIdBytes32, entropyBytes32);
       const receipt = await tx.wait();
       console.log(`[Blockchain] commitEntropy confirmed: ${receipt.hash}`);
       return receipt;
@@ -117,8 +122,10 @@ export class BlockchainService {
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
       const tx = await this.stakeArena.finalizeMatch(
-        matchId,
+        matchIdBytes32,
         players,
         scores,
         winner
@@ -166,7 +173,9 @@ export class BlockchainService {
    */
   async getStake(matchId: string, playerAddress: string): Promise<number> {
     try {
-      const stake: bigint = await this.stakeArena.getStake(matchId, playerAddress);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      const stake: bigint = await this.stakeArena.getStake(matchIdBytes32, playerAddress);
       return Number(ethers.formatEther(stake));
     } catch (error) {
       console.error('[Blockchain] Error fetching stake:', error);
@@ -179,7 +188,9 @@ export class BlockchainService {
    */
   async isActive(matchId: string, playerAddress: string): Promise<boolean> {
     try {
-      return await this.stakeArena.isActive(matchId, playerAddress);
+      // Convert string match ID to bytes32
+      const matchIdBytes32 = ethers.id(matchId);
+      return await this.stakeArena.isActive(matchIdBytes32, playerAddress);
     } catch (error) {
       console.error('[Blockchain] Error checking active status:', error);
       return false;
