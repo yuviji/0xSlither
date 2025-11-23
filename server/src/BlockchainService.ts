@@ -6,6 +6,7 @@ const STAKE_ARENA_ABI = [
   'function reportSelfDeath(bytes32 matchId, address player, uint256 score) external',
   'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId, bytes32 seedHash) external',
   'function finalizeMatch(bytes32 matchId, address[] calldata players, uint256[] calldata scores, address winner) external',
+  'function withdrawBalance() external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
   'function bestScore(address player) external view returns (uint256)',
   'function getStake(bytes32 matchId, address player) external view returns (uint256)',
@@ -356,6 +357,76 @@ export class BlockchainService {
    */
   getPendingTxCount(): number {
     return this.pendingTxs.length;
+  }
+
+  /**
+   * Withdraw accumulated native SSS from StakeArena contract to server wallet
+   * This retrieves funds from self-deaths and other contract accumulations
+   */
+  async withdrawContractBalance(): Promise<boolean> {
+    try {
+      // Get the StakeArena contract address
+      const contractAddress = await this.stakeArena.getAddress();
+      
+      // Check the contract's native SSS balance
+      const balance = await this.provider.getBalance(contractAddress);
+      const balanceFormatted = ethers.formatEther(balance);
+      
+      console.log(`[Blockchain] StakeArena contract balance: ${balanceFormatted} SSS`);
+      
+      // Only withdraw if balance is above a threshold (e.g., 10 SSS)
+      const threshold = ethers.parseEther("10");
+      
+      if (balance < threshold) {
+        console.log(`[Blockchain] Balance below threshold (${ethers.formatEther(threshold)} SSS), skipping withdrawal`);
+        return false;
+      }
+      
+      console.log(`[Blockchain] Withdrawing ${balanceFormatted} SSS from contract to server wallet...`);
+      
+      // Call withdrawBalance function
+      const tx = await this.stakeArena.withdrawBalance();
+      const receipt = await tx.wait();
+      
+      console.log(`[Blockchain] ✅ Successfully withdrew ${balanceFormatted} SSS`);
+      console.log(`[Blockchain] Transaction: ${receipt?.hash}`);
+      
+      // Check new server wallet balance
+      const serverBalance = await this.provider.getBalance(this.wallet.address);
+      console.log(`[Blockchain] Server wallet balance: ${ethers.formatEther(serverBalance)} SSS`);
+      
+      return true;
+    } catch (error) {
+      console.error('[Blockchain] Error withdrawing contract balance:', error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+
+  /**
+   * Get the StakeArena contract's native SSS balance
+   */
+  async getContractBalance(): Promise<string> {
+    try {
+      const contractAddress = await this.stakeArena.getAddress();
+      const balance = await this.provider.getBalance(contractAddress);
+      return ethers.formatEther(balance);
+    } catch (error) {
+      console.error('[Blockchain] Error getting contract balance:', error);
+      return "0";
+    }
+  }
+
+  /**
+   * Get the server wallet's native SSS balance
+   */
+  async getServerWalletBalance(): Promise<string> {
+    try {
+      const balance = await this.provider.getBalance(this.wallet.address);
+      return ethers.formatEther(balance);
+    } catch (error) {
+      console.error('[Blockchain] Error getting server wallet balance:', error);
+      return "0";
+    }
   }
 
   /**

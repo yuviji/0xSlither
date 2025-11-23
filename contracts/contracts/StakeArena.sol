@@ -250,6 +250,18 @@ contract StakeArena is Ownable, ReentrancyGuard {
     receive() external payable {}
 
     /**
+     * @dev Withdraw contract balance to owner
+     * Allows owner to withdraw accumulated SSS from self-deaths and other sources
+     */
+    function withdrawBalance() external onlyOwner nonReentrant {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance to withdraw");
+        
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Transfer failed");
+    }
+
+    /**
      * @dev Internal function to update leaderboard
      * @param player Player address
      * @param score New score
