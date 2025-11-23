@@ -83,15 +83,28 @@ export class BlockchainService {
     const operation = async () => {
       const result = await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
-        // Convert string match ID to bytes32
+        
+        // Check if both players are active before reporting
         const matchIdBytes32 = ethers.id(matchId);
+        const eaterActive = await this.stakeArena.isActive(matchIdBytes32, eaterAddress);
+        const eatenActive = await this.stakeArena.isActive(matchIdBytes32, eatenAddress);
+        console.log(`[Blockchain] Eater ${eaterAddress.slice(0, 8)} isActive: ${eaterActive}`);
+        console.log(`[Blockchain] Eaten ${eatenAddress.slice(0, 8)} isActive: ${eatenActive}`);
+        
+        if (!eaterActive || !eatenActive) {
+          console.log(`[Blockchain] One or both players not active, skipping reportEat`);
+          return null;
+        }
+        
+        // Convert string match ID to bytes32
         const tx = await this.stakeArena.reportEat(
           matchIdBytes32,
           eaterAddress,
           eatenAddress
         );
+        console.log(`[Blockchain] reportEat tx sent: ${tx.hash}`);
         const receipt = await tx.wait();
-        console.log(`[Blockchain] reportEat confirmed: ${receipt.hash}`);
+        console.log(`[Blockchain] ✅ reportEat confirmed: ${receipt.hash}`);
         return receipt;
       }, description);
       
@@ -121,15 +134,26 @@ export class BlockchainService {
     const operation = async () => {
       const result = await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
-        // Convert string match ID to bytes32
+        
+        // Check if player is active before reporting
         const matchIdBytes32 = ethers.id(matchId);
+        const isActive = await this.stakeArena.isActive(matchIdBytes32, playerAddress);
+        console.log(`[Blockchain] Player ${playerAddress.slice(0, 8)} isActive: ${isActive}`);
+        
+        if (!isActive) {
+          console.log(`[Blockchain] Player ${playerAddress.slice(0, 8)} not active, skipping reportSelfDeath`);
+          return null;
+        }
+        
+        // Convert string match ID to bytes32
         const tx = await this.stakeArena.reportSelfDeath(
           matchIdBytes32,
           playerAddress,
           score
         );
+        console.log(`[Blockchain] reportSelfDeath tx sent: ${tx.hash}`);
         const receipt = await tx.wait();
-        console.log(`[Blockchain] reportSelfDeath confirmed: ${receipt.hash}`);
+        console.log(`[Blockchain] ✅ reportSelfDeath confirmed: ${receipt.hash}`);
         return receipt;
       }, description);
       
@@ -316,11 +340,22 @@ export class BlockchainService {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         return await fn();
-      } catch (error) {
+      } catch (error: any) {
+        // Enhanced error logging
         console.error(
-          `[Blockchain] ${description} failed (attempt ${attempt}/${this.maxRetries}):`,
-          error instanceof Error ? error.message : error
+          `[Blockchain] ${description} failed (attempt ${attempt}/${this.maxRetries}):`
         );
+        
+        if (error.code) {
+          console.error(`  Error code: ${error.code}`);
+        }
+        if (error.reason) {
+          console.error(`  Reason: ${error.reason}`);
+        }
+        if (error.data) {
+          console.error(`  Data: ${error.data}`);
+        }
+        console.error(`  Message: ${error.message || error}`);
         
         if (attempt < this.maxRetries) {
           await this.sleep(this.retryDelay * attempt);
