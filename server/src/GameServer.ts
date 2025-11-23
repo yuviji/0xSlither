@@ -300,34 +300,53 @@ export class GameServer {
     }
   }
 
-  addSnake(id: string, name: string, address?: string): SnakeEntity {
-    // Create the snake immediately so we can return it
+  addSnake(id: string, name: string, address?: string, immediate: boolean = true): SnakeEntity {
+    // Create the snake
     const snake = this.createSnakeImmediate(id, name, address);
     
-    // Queue it for addition to the game on next tick
-    // This prevents the snake from being in play mid-tick
-    this.pendingAdds.push({ id, snake });
-    
-    console.log(`Snake ${name} (${id}) created and queued for addition on next tick`);
+    if (immediate) {
+      // Add immediately - safe for player joins which happen between ticks
+      this.snakes.set(id, snake);
+      const addressLog = address ? ` wallet: ${address}` : '';
+      console.log(`Snake ${name} (${id})${addressLog} added immediately`);
+    } else {
+      // Queue it for addition to the game on next tick
+      // Use this when adding during tick processing to prevent race conditions
+      this.pendingAdds.push({ id, snake });
+      console.log(`Snake ${name} (${id}) created and queued for addition on next tick`);
+    }
     
     return snake;
   }
 
-  removeSnake(id: string): void {
-    // Queue the remove operation for next tick processing
-    if (!this.pendingRemoves.includes(id)) {
-      this.pendingRemoves.push(id);
-      console.log(`Snake ${id} queued for removal on next tick`);
+  removeSnake(id: string, immediate: boolean = false): void {
+    if (immediate) {
+      // Remove immediately - safe when called between ticks (e.g., during disconnect)
+      this.snakes.delete(id);
+      console.log(`Snake ${id} removed immediately`);
+    } else {
+      // Queue the remove operation for next tick processing
+      // Use this to avoid removing during tick processing
+      if (!this.pendingRemoves.includes(id)) {
+        this.pendingRemoves.push(id);
+        console.log(`Snake ${id} queued for removal on next tick`);
+      }
     }
   }
 
-  removeSnakeByAddress(address: string): void {
-    // Find snake with this address and queue it for removal
+  removeSnakeByAddress(address: string, immediate: boolean = true): void {
+    // Find snake with this address and remove it
+    // Default to immediate since this is typically called during join handling
     for (const [id, snake] of this.snakes.entries()) {
       if (snake.address === address) {
-        if (!this.pendingRemoves.includes(id)) {
-          this.pendingRemoves.push(id);
-          console.log(`Snake ${id} with address ${address} queued for removal (duplicate login cleanup)`);
+        if (immediate) {
+          this.snakes.delete(id);
+          console.log(`Snake ${id} with address ${address} removed immediately (duplicate login cleanup)`);
+        } else {
+          if (!this.pendingRemoves.includes(id)) {
+            this.pendingRemoves.push(id);
+            console.log(`Snake ${id} with address ${address} queued for removal (duplicate login cleanup)`);
+          }
         }
         return;
       }

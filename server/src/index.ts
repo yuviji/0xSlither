@@ -124,12 +124,14 @@ class WebSocketGameServer {
 
   private handleJoin(player: Player, name: string, address: string): void {
     // Remove old snake if exists for this player object
+    // Use immediate removal since this is between ticks (during message handling)
     if (player.snakeId) {
-      this.gameServer.removeSnake(player.snakeId);
+      this.gameServer.removeSnake(player.snakeId, true);
     }
 
     // Remove any existing snake with the same wallet address
     // (handles case where player disconnected improperly and is rejoining)
+    // Already defaults to immediate=true
     this.gameServer.removeSnakeByAddress(address);
 
     // Create new snake with required wallet address
@@ -171,8 +173,9 @@ class WebSocketGameServer {
     console.log(`Player ${player.id} tapping out from match ${matchId}`);
 
     // Remove snake from game
+    // Use immediate removal since this is between ticks (during message handling)
     const finalStake = snake.getScore(); // Use score as proxy for stake
-    this.gameServer.removeSnake(player.snakeId);
+    this.gameServer.removeSnake(player.snakeId, true);
     player.snakeId = null;
 
     // Note: Actual withdrawal happens on-chain when player calls tapOut() from client
@@ -219,7 +222,8 @@ class WebSocketGameServer {
       }
       
       // Remove snake only after blockchain operations complete
-      this.gameServer.removeSnake(player.snakeId);
+      // Use immediate removal since this is between ticks (during disconnect handling)
+      this.gameServer.removeSnake(player.snakeId, true);
     }
     
     this.players.delete(player.ws);
