@@ -56,6 +56,8 @@ export interface StateMessage {
 }
 
 // Delta-compressed state message - only sends changes since last update
+// Note: Entropy details (seed, requestId, mapType) are only sent in full state messages
+// to reduce bandwidth during gameplay - they're preserved on the client side
 export interface DeltaStateMessage {
   type: MessageType.DELTA_STATE;
   tick: number;
@@ -66,11 +68,8 @@ export interface DeltaStateMessage {
   leaderboardChanged?: SerializedLeaderboard; // Only sent if leaderboard changed
   yourId?: string; // Only sent to new players
   matchId?: string;
-  entropyPending?: boolean;
-  entropyRequestId?: string; // Pyth Entropy request ID (sequence number)
-  useFairRNG?: boolean;
-  mapType?: 'uniform' | 'clustered' | 'ring'; // Map generation type
-  entropySeed?: string; // The actual entropy seed from Pyth (for display/verification)
+  entropyPending?: boolean; // True while waiting for entropy reveal
+  useFairRNG?: boolean; // True if using Pyth Entropy (not fallback)
 }
 
 export interface DeadMessage {

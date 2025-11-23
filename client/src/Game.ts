@@ -131,7 +131,8 @@ export class Game {
       pellets[index] = pellet;
     }
 
-    // Create new state
+    // Create new state, preserving entropy info from initial full state
+    // (entropy fields are only sent in full state messages, not deltas, to save bandwidth)
     this.currentState = {
       type: MessageType.STATE,
       tick: delta.tick,
@@ -140,7 +141,10 @@ export class Game {
       leaderboard: delta.leaderboardChanged || this.currentState.leaderboard,
       matchId: delta.matchId || this.currentState.matchId,
       entropyPending: delta.entropyPending !== undefined ? delta.entropyPending : this.currentState.entropyPending,
+      entropyRequestId: this.currentState.entropyRequestId, // Preserved from full state
       useFairRNG: delta.useFairRNG !== undefined ? delta.useFairRNG : this.currentState.useFairRNG,
+      entropySeed: this.currentState.entropySeed, // Preserved from full state
+      mapType: this.currentState.mapType, // Preserved from full state
     };
 
     this.lastUpdateTime = Date.now();

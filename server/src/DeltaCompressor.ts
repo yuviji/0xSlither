@@ -105,9 +105,8 @@ export class DeltaCompressor {
       matchId: currentState.matchId,
       entropyPending: currentState.entropyPending,
       useFairRNG: currentState.useFairRNG,
-      entropySeed: currentState.entropySeed,
-      entropyRequestId: currentState.entropyRequestId,
-      mapType: currentState.mapType,
+      // Entropy details (seed, requestId, mapType) are only sent in full state messages
+      // to reduce bandwidth during gameplay - they're only needed on the start screen
     };
   }
 
