@@ -17,8 +17,7 @@ export class UI {
   private stakeButton: HTMLButtonElement;
   private tokenBalance: HTMLElement;
   private onChainStats: HTMLElement;
-  private bestScore: HTMLElement;
-  private currentStake: HTMLElement;
+  private currentScore: HTMLElement;
   private gameControls: HTMLElement;
   private tapOutButton: HTMLButtonElement;
   private loadingOverlay: HTMLElement;
@@ -42,8 +41,7 @@ export class UI {
     this.stakeButton = document.getElementById('stakeButton') as HTMLButtonElement;
     this.tokenBalance = document.getElementById('tokenBalance')!;
     this.onChainStats = document.getElementById('onChainStats')!;
-    this.bestScore = document.getElementById('bestScore')!;
-    this.currentStake = document.getElementById('currentStake')!;
+    this.currentScore = document.getElementById('currentScore')!;
     this.gameControls = document.getElementById('gameControls')!;
     this.tapOutButton = document.getElementById('tapOutButton') as HTMLButtonElement;
     this.loadingOverlay = document.getElementById('loadingOverlay')!;
@@ -209,17 +207,8 @@ export class UI {
     });
   }
 
-  updateOnChainStats(bestScore: number, currentStake: string): void {
-    this.bestScore.textContent = bestScore.toString();
-    this.currentStake.textContent = `${currentStake} SSS`;
-    
-    // Also update the best score on death screen if visible
-    if (!this.deathScreen.classList.contains('hidden')) {
-      const scoreSpan = this.bestScoreDisplay.querySelector('.score');
-      if (scoreSpan) {
-        scoreSpan.textContent = bestScore.toString();
-      }
-    }
+  updateCurrentScore(totalScore: string): void {
+    this.currentScore.textContent = `${totalScore} SSS`;
   }
 
   updateDeathScreenWithBestScore(finalScore: number, bestScore: number): void {

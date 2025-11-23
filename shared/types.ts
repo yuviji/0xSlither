@@ -19,6 +19,7 @@ export interface Snake {
   length: number;
   color: string;
   alive: boolean;
+  pelletTokens: number;
 }
 
 export interface Pellet {
@@ -27,6 +28,7 @@ export interface Pellet {
   y: number;
   size: number;
   color: string;
+  tokenAmount: number;
 }
 
 export interface LeaderboardEntry {
@@ -44,9 +46,10 @@ export type SerializedSnake = {
   angle: number;
   segments: [number, number][];
   color: string;
+  pelletTokens: number;
 };
 
-export type SerializedPellet = [string, number, number, number, string]; // [id, x, y, size, color]
+export type SerializedPellet = [string, number, number, number, string, number]; // [id, x, y, size, color, tokenAmount]
 
 export type SerializedLeaderboard = [string, number, string?][]; // [name, score, address?]
 

@@ -36,6 +36,7 @@ export class GameServer {
   private devFallbackMode: boolean = false;
   private entropySeed: string | null = null;
   private consumedPelletsThisTick: Set<string> = new Set();
+  private pelletTokensDistributed: boolean = false;
   
   // Atomic operation queues - processed at start of each tick
   private pendingAdds: PendingSnakeAdd[] = [];
@@ -88,6 +89,9 @@ export class GameServer {
         // Reinitialize pellet field with deterministic positions
         const deterministicPellets = this.matchRNG.getPelletPositions(PELLET_COUNT);
         this.pelletManager = new PelletManager(PELLET_COUNT, deterministicPellets);
+        
+        // Distribute pellet tokens after pellets are initialized
+        this.distributePelletTokens();
         
         // Get map type for logging
         const mapType = this.matchRNG.getMapType();
@@ -198,6 +202,11 @@ export class GameServer {
     // Process pending operations atomically at the start of tick
     this.processPendingOperations();
 
+    // Distribute pellet tokens if not already done (fallback mode)
+    if (!this.pelletTokensDistributed && this.snakes.size > 0) {
+      this.distributePelletTokens();
+    }
+
     // Clear consumed pellets tracking for this tick
     this.consumedPelletsThisTick.clear();
 
@@ -226,6 +235,10 @@ export class GameServer {
           // Min size (4) gives 2 segments, max size (8) gives 4 segments
           const growthAmount = Math.round(pellet.size / 2);
           snake.grow(growthAmount);
+          
+          // Transfer pellet tokens to snake
+          snake.addPelletTokens(pellet.tokenAmount);
+          
           this.pelletManager.removePellet(pellet.id);
         }
       }
@@ -247,7 +260,12 @@ export class GameServer {
           if (killer && killer.alive) {
             // Killer gains the victim's score
             killer.grow(victimScore);
-            console.log(`${killer.name} ate ${victim.name} and gained ${victimScore} points!`);
+            
+            // Transfer victim's pellet tokens to killer
+            const victimTokens = victim.getPelletTokens();
+            killer.addPelletTokens(victimTokens);
+            
+            console.log(`${killer.name} ate ${victim.name} and gained ${victimScore} points and ${victimTokens.toFixed(2)} SSS tokens!`);
             
             // Report to blockchain if both have addresses
             if (this.blockchain && this.matchId && killer.address && victim.address) {
@@ -375,11 +393,12 @@ export class GameServer {
         angle: snake.angle,
         segments: snake.segments.map(seg => [seg.x, seg.y] as [number, number]),
         color: snake.color,
+        pelletTokens: snake.pelletTokens,
       }));
 
     const pellets: SerializedPellet[] = this.pelletManager
       .getPellets()
-      .map(pellet => [pellet.id, pellet.x, pellet.y, pellet.size, pellet.color] as SerializedPellet);
+      .map(pellet => [pellet.id, pellet.x, pellet.y, pellet.size, pellet.color, pellet.tokenAmount] as SerializedPellet);
 
     const leaderboard = Leaderboard.compute(Array.from(this.snakes.values()));
 
@@ -425,6 +444,30 @@ export class GameServer {
   getSnakeScore(id: string): number {
     const snake = this.snakes.get(id);
     return snake ? snake.getScore() : 0;
+  }
+
+  /**
+   * Distribute pellet tokens across all pellets
+   * Formula: (# pellets * # players) / 300 SSS
+   */
+  private distributePelletTokens(): void {
+    if (this.pelletTokensDistributed) {
+      return; // Already distributed
+    }
+
+    const pelletCount = this.pelletManager.getPellets().length;
+    const playerCount = this.snakes.size;
+
+    if (playerCount === 0) {
+      // No players yet, wait
+      return;
+    }
+
+    const totalPelletTokens = (pelletCount * playerCount) / 300;
+    this.pelletManager.distributePelletTokens(totalPelletTokens);
+    this.pelletTokensDistributed = true;
+
+    console.log(`💰 Pellet tokens distributed: ${totalPelletTokens.toFixed(2)} SSS across ${pelletCount} pellets for ${playerCount} players`);
   }
 }
 

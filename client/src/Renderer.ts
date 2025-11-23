@@ -135,8 +135,8 @@ export class Renderer {
     }
   }
 
-  private drawPellet(pellet: [string, number, number, number, string]): void {
-    const [id, x, y, size, color] = pellet;
+  private drawPellet(pellet: [string, number, number, number, string, number]): void {
+    const [id, x, y, size, color, tokenAmount] = pellet;
     const screenPos = this.camera.worldToScreen(x, y, this.canvas.width, this.canvas.height);
 
     // Skip if off-screen

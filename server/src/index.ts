@@ -177,6 +177,13 @@ class WebSocketGameServer {
     // Remove snake from game
     // Use immediate removal since this is between ticks (during message handling)
     const finalStake = snake.getScore(); // Use score as proxy for stake
+    const pelletTokens = snake.getPelletTokens();
+    
+    // Settle pellet tokens if blockchain is available
+    if (this.blockchain && snake.address) {
+      await this.blockchain.settlePelletTokens(snake.address, pelletTokens);
+    }
+    
     this.gameServer.removeSnake(player.snakeId, true);
     player.snakeId = null;
 
@@ -202,7 +209,8 @@ class WebSocketGameServer {
       // If snake is still alive and has a wallet address, report disconnect as self-death
       if (snake && snake.alive && snake.address && this.blockchain && this.matchId) {
         const snakeScore = snake.getScore();
-        console.log(`Player ${player.id} disconnected with active snake (score: ${snakeScore}) - checking on-chain status`);
+        const pelletTokens = snake.getPelletTokens();
+        console.log(`Player ${player.id} disconnected with active snake (score: ${snakeScore}, pellet tokens: ${pelletTokens.toFixed(2)}) - checking on-chain status`);
         
         // CRITICAL: Immediately kill the snake to prevent other players from eating it
         // while we're doing async blockchain operations
@@ -215,6 +223,9 @@ class WebSocketGameServer {
           if (isActive && this.blockchain && snake.address) {
             console.log(`Player ${player.id} (${snake.address}) has active stake - transferring to server`);
             await this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore);
+            
+            // Settle pellet tokens on disconnect
+            await this.blockchain.settlePelletTokens(snake.address, pelletTokens);
           } else {
             console.log(`Player ${player.id} (${snake.address}) not active in match, skipping disconnect report`);
           }

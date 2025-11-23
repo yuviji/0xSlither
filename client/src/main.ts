@@ -27,7 +27,10 @@ class GameClient {
   private inputThrottle = 50; // Send input at most every 50ms
   private animationFrameId: number | null = null;
   private walletAddress: string | null = null;
-  private statsUpdateInterval: number | null = null;
+  private hasStaked = false;
+  private currentStake: number = 0; // Cached stake value (fetched from blockchain)
+  private lastPelletTokens: number = 0; // Track last known pellet tokens for change detection
+  private lastSnakeLength: number = 0; // Track snake length to detect when we eat another snake
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -71,6 +74,11 @@ class GameClient {
         CURRENT_MATCH_ID = state.matchId;
         console.log('Match ID updated from server:', CURRENT_MATCH_ID);
       }
+      
+      // Event-based score update: only update when pellet tokens change
+      if (this.isPlaying && !this.isSpectating) {
+        this.updateScoreFromGameState();
+      }
     });
 
     this.game.onPlayerIdReceived((playerId) => {
@@ -81,9 +89,9 @@ class GameClient {
         this.ui.hideStartScreen();
         this.ui.hideDeathScreen();
         
-        // Start updating on-chain stats if blockchain enabled
+        // Initialize stake value from blockchain once when gameplay starts
         if (STAKE_ARENA_ADDRESS) {
-          this.startStatsUpdates();
+          this.initializeScore();
         }
       }
     });
@@ -94,11 +102,14 @@ class GameClient {
       this.isSpectating = true;
       this.ui.showDeathScreen(score);
       this.ui.hideGameControls(); // Hide tap out button after death
-      this.stopStatsUpdates();
+      
+      // Reset tracking
+      this.lastPelletTokens = 0;
+      this.lastSnakeLength = 0;
       
       // Wait for blockchain transaction to process, then update stats one final time
       setTimeout(async () => {
-        await this.updateOnChainStatsAfterDeath(score);
+        await this.updateScoreAfterDeath(score);
         console.log('Final stats updated after death');
       }, 3000); // Wait 3 seconds for blockchain confirmation
     });
@@ -118,7 +129,11 @@ class GameClient {
       this.ui.hideDeathScreen();
       this.ui.resetStakeState();
       this.ui.showStartScreen();
-      this.stopStatsUpdates();
+      
+      // Reset tracking
+      this.currentStake = 0;
+      this.lastPelletTokens = 0;
+      this.lastSnakeLength = 0;
     });
 
     this.ui.onConnectWallet(async () => {
@@ -305,7 +320,6 @@ class GameClient {
     // Step 1: Immediately disconnect from game (remove player from server)
     this.isPlaying = false;
     this.isSpectating = true;
-    this.stopStatsUpdates();
     this.ui.hideGameControls();
     this.ui.hideDeathScreen();
     
@@ -337,10 +351,12 @@ class GameClient {
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
         
-        // Update best score immediately
-        const bestScore = await this.wallet.getBestScore();
-        const currentStake = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
-        this.ui.updateOnChainStats(bestScore, currentStake);
+        // Update score after tap out (fetch fresh stake from blockchain)
+        const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
+        this.currentStake = parseFloat(stakeString);
+        this.lastPelletTokens = 0;
+        this.lastSnakeLength = 0;
+        this.ui.updateCurrentScore(stakeString);
         
         // Return to home screen
         this.isSpectating = false;
@@ -366,33 +382,91 @@ class GameClient {
     return this.isSpectating || !this.isPlaying;
   }
 
-  private startStatsUpdates(): void {
-    this.updateOnChainStats();
-    this.statsUpdateInterval = window.setInterval(() => {
-      this.updateOnChainStats();
-    }, 10000); // Update every 10 seconds
-  }
-
-  private stopStatsUpdates(): void {
-    if (this.statsUpdateInterval) {
-      clearInterval(this.statsUpdateInterval);
-      this.statsUpdateInterval = null;
-    }
-  }
-
-  private async updateOnChainStats(): Promise<void> {
+  /**
+   * Initialize score once when gameplay starts (fetches stake from blockchain)
+   */
+  private async initializeScore(): Promise<void> {
     if (!this.wallet || !this.walletAddress) return;
 
     try {
-      const bestScore = await this.wallet.getBestScore();
-      const currentStake = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
-      this.ui.updateOnChainStats(bestScore, currentStake);
+      const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
+      this.currentStake = parseFloat(stakeString);
+      this.lastPelletTokens = 0;
+      this.lastSnakeLength = 5; // Initial snake length
+      
+      // Display initial score (stake only, no pellet tokens yet)
+      this.ui.updateCurrentScore(this.currentStake.toFixed(2));
+      console.log('Initial score initialized:', this.currentStake);
     } catch (error) {
-      console.error('Error updating on-chain stats:', error);
+      console.error('Error initializing score:', error);
     }
   }
 
-  private async updateOnChainStatsAfterDeath(finalScore: number): Promise<void> {
+  /**
+   * Event-based score update triggered by game state changes
+   * Updates UI when pellet tokens change or when we eat another snake
+   */
+  private updateScoreFromGameState(): void {
+    if (!this.game) return;
+
+    const playerSnake = this.game.getPlayerSnake();
+    if (!playerSnake) return;
+
+    const currentPelletTokens = playerSnake.pelletTokens || 0;
+    const currentLength = playerSnake.segments.length;
+
+    // Detect if we ate another snake (significant length increase)
+    // Pellets give ~2-4 segments, snakes give much more
+    const lengthIncrease = currentLength - this.lastSnakeLength;
+    const ateAnotherSnake = lengthIncrease > 10; // Threshold for snake consumption
+
+    if (ateAnotherSnake) {
+      // Snake was eaten - their stake was transferred to us
+      // Refetch stake from blockchain
+      console.log('Detected snake consumption, refetching stake from blockchain');
+      this.refetchStake();
+    }
+
+    // Update length tracking
+    this.lastSnakeLength = currentLength;
+
+    // Update UI if pellet tokens changed (happens on pellet eat or snake eat)
+    if (currentPelletTokens !== this.lastPelletTokens) {
+      this.lastPelletTokens = currentPelletTokens;
+      
+      // Combined score = stake + pellet tokens
+      const totalScore = this.currentStake + currentPelletTokens;
+      
+      this.ui.updateCurrentScore(totalScore.toFixed(2));
+    }
+  }
+
+  /**
+   * Refetch stake from blockchain (when eating another snake)
+   */
+  private async refetchStake(): Promise<void> {
+    if (!this.wallet || !this.walletAddress) return;
+
+    try {
+      const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
+      const newStake = parseFloat(stakeString);
+      
+      if (newStake !== this.currentStake) {
+        console.log(`Stake updated: ${this.currentStake.toFixed(2)} → ${newStake.toFixed(2)} SSS`);
+        this.currentStake = newStake;
+        
+        // Update UI with new total score
+        const playerSnake = this.game?.getPlayerSnake();
+        const pelletTokens = playerSnake?.pelletTokens || 0;
+        const totalScore = this.currentStake + pelletTokens;
+        this.ui.updateCurrentScore(totalScore.toFixed(2));
+      }
+    } catch (error) {
+      console.error('Error refetching stake:', error);
+    }
+  }
+
+  private async updateScoreAfterDeath(finalScore: number): Promise<void> {
     if (!this.wallet || !this.walletAddress) return;
 
     try {
@@ -404,8 +478,8 @@ class GameClient {
       
       console.log(`Final score: ${finalScore}, On-chain best: ${bestScoreFromChain}, Displaying: ${displayScore}`);
       
-      // Update on-chain stats panel
-      this.ui.updateOnChainStats(displayScore, currentStake);
+      // Score is just the stake after death (pellet tokens are settled)
+      this.ui.updateCurrentScore(currentStake);
       
       // Update death screen with best score info
       this.ui.updateDeathScreenWithBestScore(finalScore, displayScore);

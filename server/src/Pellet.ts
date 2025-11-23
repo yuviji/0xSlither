@@ -38,6 +38,7 @@ export class PelletManager {
       y,
       size,
       color,
+      tokenAmount: 0, // Will be set during token distribution
     };
     this.pellets.set(pellet.id, pellet);
   }
@@ -49,6 +50,7 @@ export class PelletManager {
       y: Math.random() * WORLD_HEIGHT,
       size: PELLET_MIN_SIZE + Math.random() * (PELLET_MAX_SIZE - PELLET_MIN_SIZE),
       color: PELLET_COLORS[Math.floor(Math.random() * PELLET_COLORS.length)],
+      tokenAmount: 0, // Will be set during token distribution
     };
     
     this.pellets.set(pellet.id, pellet);
@@ -84,6 +86,36 @@ export class PelletManager {
 
   hasChanges(): boolean {
     return this.changedPelletIds.size > 0;
+  }
+
+  /**
+   * Distribute tokens across all pellets proportionally by size
+   * @param totalAmount Total SSS tokens to distribute
+   */
+  distributePelletTokens(totalAmount: number): void {
+    const pellets = Array.from(this.pellets.values());
+    
+    if (pellets.length === 0) {
+      console.warn('No pellets to distribute tokens to');
+      return;
+    }
+
+    // Calculate total size weight
+    const totalSizeWeight = pellets.reduce((sum, p) => sum + p.size, 0);
+
+    // Distribute tokens proportionally by size
+    let distributedTotal = 0;
+    pellets.forEach((pellet, index) => {
+      if (index === pellets.length - 1) {
+        // Last pellet gets remainder to avoid rounding errors
+        pellet.tokenAmount = totalAmount - distributedTotal;
+      } else {
+        pellet.tokenAmount = (pellet.size / totalSizeWeight) * totalAmount;
+        distributedTotal += pellet.tokenAmount;
+      }
+    });
+
+    console.log(`✅ Distributed ${totalAmount} SSS tokens across ${pellets.length} pellets`);
   }
 }
 

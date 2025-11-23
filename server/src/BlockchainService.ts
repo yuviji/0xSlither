@@ -17,6 +17,7 @@ const STAKE_ARENA_ABI = [
   'event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId)',
 ];
 
+
 interface LeaderboardEntry {
   player: string;
   score: bigint;
@@ -427,6 +428,54 @@ export class BlockchainService {
       console.error('[Blockchain] Error getting server wallet balance:', error);
       return "0";
     }
+  }
+
+  /**
+   * Settle pellet tokens at match end/tap-out
+   * Server pays out accumulated pellet tokens to player via native SSS transfer
+   * @param playerAddress Player's address
+   * @param pelletTokens Amount of pellet tokens the player accumulated
+   */
+  async settlePelletTokens(
+    playerAddress: string,
+    pelletTokens: number
+  ): Promise<void> {
+    const description = `settlePelletTokens: ${pelletTokens.toFixed(2)} SSS to ${playerAddress.slice(0, 8)}`;
+    
+    // If player has no pellet tokens, nothing to settle
+    if (pelletTokens <= 0) {
+      console.log(`[Blockchain] No pellet tokens to settle for ${playerAddress.slice(0, 8)}`);
+      return;
+    }
+
+    // Queue this operation for the player's address
+    const operation = async () => {
+      await this.executeWithRetry(async () => {
+        console.log(`[Blockchain] ${description}`);
+        
+        // Convert pellet tokens to wei (18 decimals for native SSS)
+        const amountWei = ethers.parseEther(pelletTokens.toFixed(18));
+        
+        // Check server wallet balance (native token balance)
+        const serverBalance = await this.provider.getBalance(this.wallet.address);
+        if (serverBalance < amountWei) {
+          console.error(`[Blockchain] Insufficient server balance for pellet token payout: ${ethers.formatEther(serverBalance)} < ${pelletTokens.toFixed(2)} SSS`);
+          throw new Error('Insufficient server balance for pellet token payout');
+        }
+        
+        // Transfer native SSS from server to player
+        const tx = await this.wallet.sendTransaction({
+          to: playerAddress,
+          value: amountWei,
+        });
+        const receipt = await tx.wait();
+        console.log(`[Blockchain] ✅ Pellet tokens settled: ${pelletTokens.toFixed(2)} SSS to ${playerAddress.slice(0, 8)}, tx: ${receipt!.hash}`);
+        return receipt;
+      }, description);
+    };
+    
+    // Queue for the player's address to prevent race conditions
+    this.queueForAddress(playerAddress, operation);
   }
 
   /**

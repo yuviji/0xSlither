@@ -23,6 +23,7 @@ export class SnakeEntity implements Snake {
   color: string;
   alive: boolean;
   targetAngle: number;
+  pelletTokens: number;
   
   // Track position history for body segments
   private positionHistory: Position[] = [];
@@ -37,6 +38,7 @@ export class SnakeEntity implements Snake {
     this.length = SNAKE_INITIAL_LENGTH;
     this.color = color;
     this.alive = true;
+    this.pelletTokens = 0;
     this.segments = [];
     
     // Initialize position history with segments trailing behind the head
@@ -149,6 +151,14 @@ export class SnakeEntity implements Snake {
 
   getScore(): number {
     return this.length;
+  }
+
+  addPelletTokens(amount: number): void {
+    this.pelletTokens += amount;
+  }
+
+  getPelletTokens(): number {
+    return this.pelletTokens;
   }
 }
 
