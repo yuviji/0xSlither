@@ -21,8 +21,10 @@ export class WalletService {
   private signer: ethers.Signer | null = null;
   private address: string | null = null;
   private stakeArena: ethers.Contract | null = null;
+  private isConnecting: boolean = false; // Track if we're in the connection process
 
   async connectWallet(): Promise<string | null> {
+    this.isConnecting = true;
     try {
       // Check if MetaMask is installed
       if (!window.ethereum) {
@@ -47,17 +49,25 @@ export class WalletService {
       console.log('✅ Wallet fully connected and configured');
       console.log(`📡 Network: ${NETWORK_CONFIG.chainName}`);
       console.log(`💎 Using native ${NETWORK_CONFIG.nativeCurrency.symbol} token`);
+      
+      this.isConnecting = false;
       return this.address;
     } catch (error: any) {
       console.error('❌ Failed to connect wallet:', error);
       
+      // Check both direct code and nested error code (ethers.js wraps errors)
+      const errorCode = error.code || error.error?.code || error.info?.error?.code;
+      
       // Provide user-friendly error messages
-      if (error.code === 4001) {
-        console.error('User rejected the connection request');
-      } else if (error.code === -32002) {
-        console.error('Connection request already pending - please check your wallet');
+      if (errorCode === 4001) {
+        console.error('💭 User rejected the connection request');
+      } else if (errorCode === -32002) {
+        console.error('⏳ Connection request already pending - please check your wallet');
+      } else if (error.message?.includes('rejected')) {
+        console.error('💭 User rejected the request');
       }
       
+      this.isConnecting = false;
       return null;
     }
   }
@@ -79,6 +89,10 @@ export class WalletService {
       if (network.chainId !== NETWORK_CONFIG.chainId) {
         console.log(`🔄 Wrong network detected. Switching to ${NETWORK_CONFIG.chainName}...`);
         await this.switchToCorrectNetwork();
+        
+        // After network switch, reinitialize signer to get fresh state
+        this.signer = await this.provider.getSigner();
+        console.log('✅ Signer reinitialized after network switch');
       } else {
         console.log(`✅ Already on ${NETWORK_CONFIG.chainName}`);
       }
@@ -106,10 +120,20 @@ export class WalletService {
       console.log(`✅ Successfully switched to ${NETWORK_CONFIG.chainName}`);
     } catch (switchError: any) {
       // Error code 4902 means the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
+      // ethers.js wraps MetaMask errors, so we need to check multiple places
+      const errorCode = switchError.code || switchError.error?.code || switchError.info?.error?.code;
+      const errorMessage = switchError.message || '';
+      
+      // Check for error code 4902 or error message containing 4902
+      const isNetworkNotFound = errorCode === 4902 || errorMessage.includes('"code": 4902') || errorMessage.includes('4902');
+      const isUserRejection = errorCode === 4001 || errorCode === 'ACTION_REJECTED';
+      
+      console.log('🔍 Switch error debug:', { errorCode, isNetworkNotFound, errorMessage: errorMessage.substring(0, 100) });
+      
+      if (isNetworkNotFound) {
         console.log(`➕ Network not found in wallet. Adding ${NETWORK_CONFIG.chainName}...`);
         await this.addNetworkToWallet();
-      } else if (switchError.code === 4001) {
+      } else if (isUserRejection) {
         // User rejected the request
         console.error('❌ User rejected network switch request');
         throw new Error('Network switch rejected by user');
@@ -143,9 +167,34 @@ export class WalletService {
       ]);
       
       console.log(`✅ Successfully added ${NETWORK_CONFIG.chainName} to wallet`);
-      console.log('🔄 Network should now be switched automatically');
+      console.log('⏳ Waiting for network switch to complete...');
+      
+      // Wait a moment for MetaMask to complete the network switch
+      await this.sleep(1000);
+      
+      // Reinitialize provider to get fresh network state
+      this.provider = new ethers.BrowserProvider(window.ethereum);
+      
+      // Verify we're now on the correct network
+      const network = await this.provider.getNetwork();
+      if (network.chainId !== NETWORK_CONFIG.chainId) {
+        console.warn('⚠️  Network not switched yet, waiting...');
+        await this.sleep(1000);
+        this.provider = new ethers.BrowserProvider(window.ethereum);
+        const retryNetwork = await this.provider.getNetwork();
+        if (retryNetwork.chainId !== NETWORK_CONFIG.chainId) {
+          throw new Error('Network switch did not complete');
+        }
+      }
+      
+      console.log('✅ Network switch confirmed');
     } catch (addError: any) {
-      if (addError.code === 4001) {
+      // Check both direct code and nested error code (ethers.js wraps errors)
+      const errorCode = addError.code || addError.error?.code || addError.info?.error?.code;
+      const errorMessage = addError.message || '';
+      const isUserRejection = errorCode === 4001 || errorCode === 'ACTION_REJECTED' || errorMessage.includes('4001');
+      
+      if (isUserRejection) {
         console.error('❌ User rejected adding the network');
         throw new Error('Adding network rejected by user');
       } else {
@@ -153,6 +202,13 @@ export class WalletService {
         throw addError;
       }
     }
+  }
+
+  /**
+   * Sleep utility for waiting
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   initializeContracts(stakeArenaAddress: string): void {
@@ -301,6 +357,12 @@ export class WalletService {
     window.ethereum.on('chainChanged', async (chainId: string) => {
       const chainIdBigInt = BigInt(chainId);
       console.log('🔄 Network changed to chain ID:', chainIdBigInt);
+      
+      // Don't show errors if we're in the connection process (e.g., auto-adding network)
+      if (this.isConnecting) {
+        console.log('⏳ Network change detected during connection process, ignoring...');
+        return;
+      }
       
       if (chainIdBigInt !== NETWORK_CONFIG.chainId) {
         console.warn(`⚠️  You are no longer on ${NETWORK_CONFIG.chainName}`);

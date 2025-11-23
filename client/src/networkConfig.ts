@@ -16,10 +16,13 @@ export interface NetworkConfig {
   blockExplorerUrls: string[];
 }
 
+// Chain ID as a number for calculations
+const CHAIN_ID_DECIMAL = 2763767854157000n;
+
 // Saga Chainlet Configuration
 export const NETWORK_CONFIG: NetworkConfig = {
-  chainId: 2763767854157000n,
-  chainIdHex: '0x9d2e51e92f0d8', // Hex representation of 2763767854157000
+  chainId: CHAIN_ID_DECIMAL,
+  chainIdHex: '0x' + CHAIN_ID_DECIMAL.toString(16), // Auto-computed: 0x9d1a1d9304cc8
   chainName: '0xSlither Saga Chainlet',
   nativeCurrency: {
     name: 'SSS',
