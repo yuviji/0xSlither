@@ -12,7 +12,7 @@ import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   PELLET_COUNT,
-} from 'shared';
+} from '@0xslither/shared';
 
 export class GameServer {
   private snakes: Map<string, SnakeEntity> = new Map();

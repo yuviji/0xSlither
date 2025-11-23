@@ -7,7 +7,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'shared': path.resolve(__dirname, '../shared/index.ts'),
+      '@0xslither/shared': path.resolve(__dirname, '../shared/index.ts'),
     },
   },
 });

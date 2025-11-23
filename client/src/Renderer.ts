@@ -1,4 +1,4 @@
-import { StateMessage, SerializedSnake, SNAKE_HEAD_RADIUS, SNAKE_SEGMENT_RADIUS, WORLD_WIDTH, WORLD_HEIGHT } from 'shared';
+import { StateMessage, SerializedSnake, SNAKE_HEAD_RADIUS, SNAKE_SEGMENT_RADIUS, WORLD_WIDTH, WORLD_HEIGHT } from '@0xslither/shared';
 import { Camera } from './Camera';
 
 export class Renderer {

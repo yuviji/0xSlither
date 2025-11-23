@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "ws": "^8.18.0",
-    "shared": "*",
+    "@0xslither/shared": "workspace:*",
     "ethers": "^6.9.0",
     "dotenv": "^16.3.1"
   },

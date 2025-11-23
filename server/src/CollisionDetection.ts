@@ -1,5 +1,5 @@
 import { SnakeEntity } from './Snake';
-import { Pellet, SNAKE_HEAD_RADIUS, COLLISION_DISTANCE } from 'shared';
+import { Pellet, SNAKE_HEAD_RADIUS, COLLISION_DISTANCE } from '@0xslither/shared';
 
 export interface CollisionResult {
   victimId: string;

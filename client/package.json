@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "shared": "*",
+    "@0xslither/shared": "workspace:*",
     "ethers": "^6.9.0"
   },
   "devDependencies": {

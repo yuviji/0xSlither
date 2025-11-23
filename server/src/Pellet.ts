@@ -5,7 +5,7 @@ import {
   PELLET_MIN_SIZE,
   PELLET_MAX_SIZE,
   PELLET_COLORS,
-} from 'shared';
+} from '@0xslither/shared';
 
 export class PelletManager {
   private pellets: Map<string, Pellet> = new Map();

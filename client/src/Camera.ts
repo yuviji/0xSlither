@@ -1,4 +1,4 @@
-import { Position } from 'shared';
+import { Position } from '@0xslither/shared';
 
 export class Camera {
   x = 0;

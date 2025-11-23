@@ -12,7 +12,7 @@ import {
   isInputMessage,
   isPingMessage,
   isTapOutMessage,
-} from 'shared';
+} from '@0xslither/shared';
 
 dotenv.config();
 

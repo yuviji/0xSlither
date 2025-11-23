@@ -12,7 +12,7 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "shared": ["../shared"]
+      "@0xslither/shared": ["../shared"]
     }
   },
   "include": ["src/**/*", "../shared/**/*"],

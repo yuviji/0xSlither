@@ -3,7 +3,7 @@ import { Renderer } from './Renderer';
 import { InputHandler } from './InputHandler';
 import { UI } from './UI';
 import { WalletService } from './WalletService';
-import { TICK_INTERVAL, MessageType, TapOutMessage } from 'shared';
+import { TICK_INTERVAL, MessageType, TapOutMessage } from '@0xslither/shared';
 
 // WebSocket server URL (adjust for production)
 const WSS_URL = import.meta.env.VITE_WSS_URL;

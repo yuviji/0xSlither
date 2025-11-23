@@ -10,7 +10,7 @@ import {
   SNAKE_SEGMENT_RADIUS,
   SNAKE_GROWTH_PER_PELLET,
   TICK_RATE,
-} from 'shared';
+} from '@0xslither/shared';
 
 export class SnakeEntity implements Snake {
   id: string;

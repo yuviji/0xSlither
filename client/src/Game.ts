@@ -6,7 +6,7 @@ import {
   JoinMessage,
   InputMessage,
   SerializedSnake,
-} from 'shared';
+} from '@0xslither/shared';
 
 export class Game {
   private ws: WebSocket | null = null;

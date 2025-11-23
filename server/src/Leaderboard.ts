@@ -1,5 +1,5 @@
 import { SnakeEntity } from './Snake';
-import { LeaderboardEntry, LEADERBOARD_SIZE } from 'shared';
+import { LeaderboardEntry, LEADERBOARD_SIZE } from '@0xslither/shared';
 
 export class Leaderboard {
   static compute(snakes: SnakeEntity[]): LeaderboardEntry[] {

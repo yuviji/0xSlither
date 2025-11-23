@@ -1,4 +1,4 @@
-import { StateMessage } from 'shared';
+import { StateMessage } from '@0xslither/shared';
 
 export class UI {
   private startScreen: HTMLElement;
