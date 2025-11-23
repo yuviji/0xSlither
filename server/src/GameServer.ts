@@ -142,8 +142,10 @@ export class GameServer {
   }
 
   addSnake(id: string, name: string, address?: string): SnakeEntity {
-    // Generate random spawn position (not too close to edges)
-    const margin = 200;
+    // Generate random spawn position (far from edges to prevent immediate death)
+    // With a margin of 500 pixels and base speed of 150px/s, players have ~3.3 seconds
+    // to react before hitting a wall if spawning near the edge
+    const margin = 500;
     const x = margin + Math.random() * (WORLD_WIDTH - 2 * margin);
     const y = margin + Math.random() * (WORLD_HEIGHT - 2 * margin);
     
