@@ -27,6 +27,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
     // Match data
     mapping(bytes32 => MatchSummary) public matches;
     mapping(bytes32 => bytes32) public matchEntropyCommit;
+    mapping(bytes32 => bytes32) public entropySeedByMatch; // matchId => keccak256(actualSeed)
     
     // Leaderboard
     mapping(address => uint256) public bestScore;
@@ -177,18 +178,22 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Server commits entropy seed for match (placeholder for Pyth integration)
+     * @dev Server commits entropy seed for match (Pyth integration)
      * @param matchId Match identifier
-     * @param entropyRequestId Entropy request identifier
+     * @param entropyRequestId Entropy request identifier from Base Sepolia
+     * @param seedHash keccak256 hash of the actual seed for verification
      */
-    function commitEntropy(bytes32 matchId, bytes32 entropyRequestId) 
+    function commitEntropy(bytes32 matchId, bytes32 entropyRequestId, bytes32 seedHash) 
         external 
         onlyAuthorizedServer 
     {
         require(matches[matchId].startTime > 0, "Match not started");
         require(!matches[matchId].finalized, "Match finalized");
+        require(entropySeedByMatch[matchId] == bytes32(0), "Entropy already committed");
+        require(seedHash != bytes32(0), "Invalid seed hash");
         
         matchEntropyCommit[matchId] = entropyRequestId;
+        entropySeedByMatch[matchId] = seedHash;
         emit EntropyCommitted(matchId, entropyRequestId);
     }
 

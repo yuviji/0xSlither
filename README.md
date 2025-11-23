@@ -8,20 +8,26 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
 
 ### 🎯 Core Gameplay
 - **Real-time Multiplayer**: Authoritative 20 TPS server with WebSocket communication
-- **Ultra-Smooth Movement**: Advanced client-side interpolation for jerkiness-free 60 FPS visuals
 - **Collision Detection**: Precise snake-to-snake collisions and pellet consumption
 - **Dynamic Growth System**: Eat pellets to grow (growth proportional to pellet size)
 - **Responsive Camera**: Follows your snake smoothly with easing
 
-### ⛓️ Blockchain Economy (NEW!)
+### ⛓️ [Blockchain Economy](https://slither-2763767854157000-1.sagaexplorer.io/txs)
 - **Stake-to-Enter**: Players stake SSS tokens to join matches
 - **Loot-on-Eat**: Winners receive 100% of eaten players' stakes on-chain
 - **Tap-Out Anytime**: Exit and withdraw your current stake
-- **On-Chain Leaderboard**: Top 10 players tracked permanently
+- **On-Chain Leaderboard**: Top players tracked permanently
 - **Match Finalization**: Results stored on Saga Chainlet
 - **Best Score Tracking**: Forever preserved on-chain
-- **Entropy Commitment**: Placeholder for Pyth Entropy integration
 - **Auto Network Config**: Automatic MetaMask network setup (no manual configuration needed!) 🔥
+
+### 🎲 [Pyth Entropy Integration](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492)
+- **Cross-Chain Fair RNG**: Leverages Pyth Entropy on Base Sepolia for cryptographically secure randomness
+- **Deterministic Gameplay**: Single on-chain seed generates all match-critical random values
+- **Provable Fairness**: Spawn positions, snake colors, and pellet fields derived from verifiable entropy
+- **Transparent Seed**: Match seed hash committed on-chain for auditability
+- **Bridge Architecture**: Server bridges randomness between Base Sepolia (Entropy) and Saga (Game)
+- **Reproducible Matches**: Same seed + player roster = identical match conditions
 
 ## 🛠️ Tech Stack
 
@@ -32,11 +38,13 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
 - **Canvas 2D** - High-performance rendering
 
 ### Blockchain
-- **Saga Chainlet** - Dedicated EVM L1 with recycled gas
+- **Saga Chainlet** - Dedicated EVM L1 with recycled gas (Primary game economy)
+- **Base Sepolia** - L2 testnet for Pyth Entropy (Cross-chain randomness)
 - **Solidity 0.8.20** - Smart contracts
 - **Hardhat** - Development and deployment
 - **ethers.js v6** - Blockchain integration
 - **OpenZeppelin** - Secure contract libraries
+- **Pyth Entropy** - Verifiable randomness oracle
 
 ## 📁 Project Structure
 
@@ -46,29 +54,31 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
     index.ts                # WebSocket server
     GameServer.ts           # Main game loop & kill detection
     Snake.ts                # Snake entity with wallet address
-    BlockchainService.ts    # Web3 integration (NEW!)
+    BlockchainService.ts    # Saga Web3 integration
+    EntropyBridgeService.ts # Pyth Entropy cross-chain bridge
+    DeterministicRNG.ts     # Fair RNG from on-chain seed
     Pellet.ts               # Pellet management
     CollisionDetection.ts   # Physics
     Leaderboard.ts          # In-memory rankings
-
 /client          # Browser-based frontend (60 FPS)
   /src
     main.ts         # Entry point
     Game.ts         # Client game state
-    WalletService.ts # Wallet connection & staking (NEW!)
+    WalletService.ts # Wallet connection & staking
     Renderer.ts     # Canvas rendering
     Camera.ts       # Camera system
     InputHandler.ts # Mouse input
     UI.ts           # UI management
 
-/contracts       # Smart contracts (NEW!)
+/contracts       # Smart contracts
   /contracts
-    StakeArena.sol     # Main game contract (uses native SSS)
+    StakeArena.sol     # Main game contract on Saga (uses native SSS)
+    EntropyOracle.sol  # Pyth Entropy oracle on Base Sepolia
   /scripts
-    deploy.ts          # Deployment script
-    updateServer.ts    # Authorize server
-    checkBalance.ts    # Check SSS balance
-    getLeaderboard.ts  # Query on-chain data
+    deploy.ts                # Deploy StakeArena to Saga
+    deployEntropyOracle.ts   # Deploy EntropyOracle to Base Sepolia
+    updateServer.ts          # Authorize server
+    getLeaderboard.ts        # Query on-chain data
 
 /shared          # Shared types and protocol
   constants.ts   # Game constants
@@ -99,6 +109,13 @@ To enable the full on-chain economy:
 1. **Quick Setup** (5 minutes): See [QUICKSTART_BLOCKCHAIN.md](QUICKSTART_BLOCKCHAIN.md)
 2. **Full Guide**: See [BLOCKCHAIN_SETUP.md](BLOCKCHAIN_SETUP.md)
 
+### 🎲 Pyth Entropy Setup
+
+To enable cryptographically fair randomness:
+
+1. **Setup Guide**: See [ENTROPY_SETUP.md](ENTROPY_SETUP.md)
+2. **Architecture**: Cross-chain bridge between Saga (game) and Base Sepolia (Pyth Entropy)
+
 **TL;DR:**
 ```bash
 # 1. Deploy contracts
@@ -107,16 +124,15 @@ cd contracts && pnpm run deploy
 # 2. Configure server
 cd ../server
 cat > .env << EOF
-BLOCKCHAIN_ENABLED=true
 SERVER_PRIVATE_KEY=0x...
-STAKE_ARENA_ADDRESS=0x...
+STAKE_ARENA_ADDRESS=0x89D15DB8686c2aD22a0215c9E60be166aD04Aa3a
 EOF
 
 # 3. Configure client
 cd ../client
 cat > .env << EOF
 VITE_BLOCKCHAIN_ENABLED=true
-VITE_STAKE_ARENA_ADDRESS=0x...
+VITE_STAKE_ARENA_ADDRESS=0x89D15DB8686c2aD22a0215c9E60be166aD04Aa3a
 EOF
 
 # 4. Start everything
@@ -212,6 +228,64 @@ pnpm run preview
 
 The built client files will be in `client/dist/`.
 
+## 🎲 Pyth Entropy: Fair Randomness Explained
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Match Start → Server requests entropy from Base Sepolia    │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │  Pyth Oracle reveals seed  │
+        │  (10-30 seconds delay)     │
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │  Server reads seed from    │
+        │  EntropyOracle (Base)      │
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │  Server commits seed hash  │
+        │  to StakeArena (Saga)      │
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │  Deterministic generation:  │
+        │  • Player spawn positions  │
+        │  • Snake colors            │
+        │  • Pellet field layout     │
+        └────────────────────────────┘
+```
+
+### What's Randomized
+
+1. **Spawn Positions**: Each player's starting location derived from `keccak256(seed, "spawn", playerAddress, retryCount)`
+2. **Snake Colors**: Each snake's HSL color derived from `keccak256(seed, "color", playerAddress)`
+3. **Pellet Field**: All 500 pellets' positions, sizes, and colors derived from `keccak256(seed, "pellets")`
+4. **Map Type**: Layout pattern (uniform/clustered/ring) derived from `keccak256(seed, "map")`
+
+### Verification
+
+- **On-Chain Seed Hash**: Stored at `StakeArena.entropySeedByMatch[matchId]` on Saga
+- **Entropy Request ID**: Stored at `EntropyOracle.entropyRequestIdByMatch[matchId]` on Base Sepolia
+- **Reproducibility**: Given the same seed and player roster, the exact match can be replayed
+
+### Fair Match Badge
+
+When using Pyth Entropy, players see a **✓ Fair Match RNG** badge in the top-right corner showing:
+- Match ID
+- Entropy Request ID
+- Map Type
+
+This proves the match is using cryptographically secure randomness, not server-controlled values.
+
 ## Game Mechanics
 
 - **Movement**: Snake moves continuously forward, mouse controls rotation (ultra-smooth)
@@ -219,6 +293,7 @@ The built client files will be in `client/dist/`.
 - **Death**: Colliding with another snake's body kills you
 - **Respawn**: Click "Play Again" to respawn with a new snake
 - **Score**: Based on snake length
+- **Fair Spawn**: Every player's spawn position is derived from on-chain entropy (if enabled)
 
 ## Network Protocol
 
@@ -241,16 +316,24 @@ The built client files will be in `client/dist/`.
 - Smooth camera easing for professional feel
 - Supports 10-20+ concurrent players smoothly
 
-## Future Enhancements (Not Yet Implemented)
+## 🎯 Implemented Features
 
-- Web3 integration (blockchain, wallets)
+✅ Web3 integration (blockchain, wallets)  
+✅ Pyth Entropy for fair randomness  
+✅ Cross-chain architecture (Saga + Base Sepolia)  
+✅ On-chain economy with staking  
+✅ Deterministic match replay from seed  
+
+## 🚧 Future Enhancements
+
 - Oasis ROFL deployment
-- Pyth randomness
 - Mobile touch controls
 - Audio/sound effects
 - Multiple game rooms
 - Power-ups
 - Snake skins/customization
+- Tournament mode with brackets
+- NFT rewards for top players
 
 ## Troubleshooting
 

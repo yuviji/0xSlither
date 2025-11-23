@@ -14,15 +14,31 @@ async function main() {
   console.log("New Server:", serverAddress);
 
   const StakeArena = await ethers.getContractAt("StakeArena", stakeArenaAddress);
+  
   const tx = await StakeArena.updateAuthorizedServer(serverAddress);
   console.log("Transaction submitted:", tx.hash);
   
-  await tx.wait();
+  const receipt = await tx.wait();
+  console.log("✅ Transaction confirmed in block:", receipt?.blockNumber);
   console.log("✅ Authorized server updated successfully!");
 
-  // Verify
-  const currentServer = await StakeArena.authorizedServer();
-  console.log("Current authorized server:", currentServer);
+  // Verify the update
+  try {
+    // Small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const currentServer = await StakeArena.authorizedServer();
+    console.log("Current authorized server:", currentServer);
+    
+    if (currentServer.toLowerCase() === serverAddress.toLowerCase()) {
+      console.log("✓ Verification successful - server address matches!");
+    } else {
+      console.warn("⚠ Warning: Server address doesn't match expected value");
+    }
+  } catch (error: any) {
+    console.warn("⚠ Could not verify server address (this is okay if the transaction succeeded)");
+    console.warn("Error:", error.message);
+  }
 }
 
 main()

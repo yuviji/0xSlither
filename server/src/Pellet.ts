@@ -10,11 +10,35 @@ import {
 export class PelletManager {
   private pellets: Map<string, Pellet> = new Map();
   private nextId = 0;
+  private deterministicMode: boolean = false;
 
-  constructor(count: number) {
-    for (let i = 0; i < count; i++) {
-      this.spawnPellet();
+  constructor(count: number, initialPellets?: Array<{ x: number; y: number; size: number; color: string }>) {
+    if (initialPellets && initialPellets.length > 0) {
+      // Deterministic mode: use provided pellet positions
+      this.deterministicMode = true;
+      for (const pellet of initialPellets) {
+        this.addPellet(pellet.x, pellet.y, pellet.size, pellet.color);
+      }
+      console.log(`✅ Pellet field initialized deterministically with ${initialPellets.length} pellets`);
+    } else {
+      // Fallback mode: use random spawning
+      this.deterministicMode = false;
+      for (let i = 0; i < count; i++) {
+        this.spawnPellet();
+      }
+      console.log(`⚠️  Pellet field initialized with random positions (${count} pellets)`);
     }
+  }
+
+  private addPellet(x: number, y: number, size: number, color: string): void {
+    const pellet: Pellet = {
+      id: `pellet-${this.nextId++}`,
+      x,
+      y,
+      size,
+      color,
+    };
+    this.pellets.set(pellet.id, pellet);
   }
 
   private spawnPellet(): void {

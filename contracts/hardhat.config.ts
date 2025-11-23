@@ -20,6 +20,11 @@ const config: HardhatUserConfig = {
       accounts: [process.env.PRIVATE_KEY as string],
       chainId: parseInt(process.env.SAGA_CHAIN_ID as string),
     },
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts: [process.env.PRIVATE_KEY as string],
+      chainId: 84532,
+    },
   },
   paths: {
     sources: "./contracts",

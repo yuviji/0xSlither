@@ -65,6 +65,7 @@ class GameClient {
 
     this.game.onStateUpdate((state) => {
       this.ui.updateLeaderboard(state);
+      this.ui.renderEntropyInfo(state);
       // Update match ID from server if provided (only once)
       if (state.matchId && state.matchId !== CURRENT_MATCH_ID) {
         CURRENT_MATCH_ID = state.matchId;

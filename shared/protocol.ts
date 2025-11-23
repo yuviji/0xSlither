@@ -47,6 +47,11 @@ export interface StateMessage {
   leaderboard: SerializedLeaderboard;
   yourId?: string; // Only sent to new players
   matchId?: string; // Match ID for blockchain operations
+  entropyPending?: boolean; // True while waiting for Pyth Entropy reveal
+  entropyRequestId?: string; // Pyth Entropy request ID (sequence number)
+  useFairRNG?: boolean; // True if using Pyth Entropy (not fallback)
+  mapType?: 'uniform' | 'clustered' | 'ring'; // Map generation type
+  entropySeed?: string; // The actual entropy seed from Pyth (for display/verification)
 }
 
 export interface DeadMessage {

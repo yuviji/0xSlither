@@ -315,5 +315,187 @@ export class UI {
       callback();
     });
   }
+
+  /**
+   * Render entropy information panel showing Pyth Entropy status
+   */
+  renderEntropyInfo(gameState: StateMessage | null): void {
+    // Create entropy info panel if it doesn't exist
+    let entropyPanel = document.getElementById('entropy-panel');
+    if (!entropyPanel) {
+      entropyPanel = document.createElement('div');
+      entropyPanel.id = 'entropy-panel';
+      entropyPanel.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border: 2px solid #00ff88;
+        border-radius: 12px;
+        padding: 16px 20px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 12px;
+        color: #fff;
+        max-width: 300px;
+        z-index: 1000;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 4px 15px rgba(0, 0, 0, 0.5);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: slideInRight 0.5s ease-out;
+      `;
+      
+      // Add keyframe animation for slide in
+      if (!document.getElementById('entropy-panel-animation')) {
+        const style = document.createElement('style');
+        style.id = 'entropy-panel-animation';
+        style.textContent = `
+          @keyframes slideInRight {
+            from {
+              opacity: 0;
+              transform: translateX(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+            }
+            50% {
+              opacity: 0.6;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(entropyPanel);
+    }
+
+    // Only show if we have game state and match ID
+    if (!gameState || !gameState.matchId) {
+      entropyPanel.style.display = 'none';
+      return;
+    }
+
+    entropyPanel.style.display = 'block';
+
+    // Build entropy info content
+    let content = '';
+    
+    if (gameState.entropyPending) {
+      // Waiting for Pyth Entropy reveal - animated loading state
+      entropyPanel.style.borderColor = '#fbbf24';
+      entropyPanel.style.boxShadow = '0 0 20px rgba(251, 191, 36, 0.4), 0 4px 15px rgba(0, 0, 0, 0.5)';
+      
+      content = `
+        <div style="text-align: center;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+            <div style="color: #fbbf24; font-size: 20px; animation: pulse 1.5s ease-in-out infinite;">⏳</div>
+            <div style="color: #fbbf24; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+              Generating Seed
+            </div>
+          </div>
+          <div style="color: #cbd5e1; font-size: 11px; line-height: 1.5;">
+            Requesting randomness from<br/>
+            <span style="color: #fbbf24; font-weight: 600;">Pyth Entropy</span> on Base Sepolia
+          </div>
+        </div>
+      `;
+    } else if (gameState.useFairRNG) {
+      // Using Pyth Entropy - show success status with green theme
+      entropyPanel.style.borderColor = '#00ff88';
+      entropyPanel.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.3), 0 4px 15px rgba(0, 0, 0, 0.5)';
+      
+      const requestIdShort = gameState.entropyRequestId?.substring(0, 8) || 'N/A';
+      const seedShort = gameState.entropySeed ? `${gameState.entropySeed.slice(0, 10)}...${gameState.entropySeed.slice(-6)}` : null;
+      
+      content = `
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="
+            color: #00ff88; 
+            font-size: 18px; 
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+          ">✓</div>
+          <div style="
+            color: #00ff88; 
+            font-weight: bold; 
+            font-size: 14px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+          ">Fair Match RNG</div>
+        </div>
+        <div style="color: #cbd5e1; font-size: 11px; line-height: 1.8;">
+          <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
+            <span style="color: #94a3b8; font-weight: 500;">Match:</span> 
+            <span style="color: #fff; font-weight: 600; font-family: 'Courier New', monospace;">${gameState.matchId.slice(0, 10)}...</span>
+          </div>
+          ${gameState.entropyRequestId ? `
+            <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span style="color: #94a3b8; font-weight: 500;">Request:</span> 
+              <span style="color: #00ff88; font-weight: 600; font-family: 'Courier New', monospace;">#${requestIdShort}</span>
+            </div>
+          ` : ''}
+          ${seedShort ? `
+            <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span style="color: #94a3b8; font-weight: 500;">Seed:</span> 
+              <span style="color: #fbbf24; font-weight: 600; font-family: 'Courier New', monospace; font-size: 10px;">${seedShort}</span>
+            </div>
+          ` : ''}
+          ${gameState.mapType ? `
+            <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span style="color: #94a3b8; font-weight: 500;">Map:</span> 
+              <span style="color: #fff; font-weight: 600; text-transform: capitalize;">${gameState.mapType}</span>
+            </div>
+          ` : ''}
+          <div style="
+            color: #94a3b8; 
+            font-size: 10px; 
+            margin-top: 10px; 
+            padding-top: 10px; 
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            text-align: center;
+            font-weight: 500;
+          ">
+            Powered by <span style="color: #00ff88;">Pyth Entropy</span>
+          </div>
+        </div>
+      `;
+    } else if (gameState.useFairRNG === false) {
+      // Fallback mode warning - orange/yellow theme
+      entropyPanel.style.borderColor = '#fbbf24';
+      entropyPanel.style.boxShadow = '0 0 20px rgba(251, 191, 36, 0.3), 0 4px 15px rgba(0, 0, 0, 0.5)';
+      
+      content = `
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="
+            color: #fbbf24; 
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+          ">⚠</div>
+          <div style="
+            color: #fbbf24; 
+            font-weight: bold; 
+            font-size: 13px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+          ">Dev Mode</div>
+        </div>
+        <div style="color: #cbd5e1; font-size: 11px; line-height: 1.6;">
+          Using fallback RNG<br/>
+          <span style="color: #94a3b8; font-size: 10px;">(not cryptographically fair)</span>
+        </div>
+      `;
+    } else {
+      // Hide if status is unknown
+      entropyPanel.style.display = 'none';
+    }
+
+    entropyPanel.innerHTML = content;
+  }
 }
 

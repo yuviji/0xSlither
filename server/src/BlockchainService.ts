@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 const STAKE_ARENA_ABI = [
   'function reportEat(bytes32 matchId, address eater, address eaten) external',
   'function reportSelfDeath(bytes32 matchId, address player, uint256 score) external',
-  'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId) external',
+  'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId, bytes32 seedHash) external',
   'function finalizeMatch(bytes32 matchId, address[] calldata players, uint256[] calldata scores, address winner) external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
   'function bestScore(address player) external view returns (uint256)',
@@ -13,6 +13,7 @@ const STAKE_ARENA_ABI = [
   'event EatLoot(bytes32 indexed matchId, address indexed eater, address indexed eaten, uint256 amountTransferred, uint256 timestamp)',
   'event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp)',
   'event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp)',
+  'event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId)',
 ];
 
 interface LeaderboardEntry {
@@ -119,25 +120,53 @@ export class BlockchainService {
   }
 
   /**
-   * Commit entropy seed for a match
+   * Commit entropy seed hash to Saga for a match
+   * @param matchId Match identifier string
+   * @param entropyRequestId Entropy request ID from Base Sepolia (sequence number)
+   * @param seed The actual random seed from Pyth Entropy
    * Non-blocking with retry logic
    */
-  async commitEntropy(matchId: string, entropyRequestId: string): Promise<void> {
+  async commitEntropyToSaga(matchId: string, entropyRequestId: string, seed: string): Promise<void> {
     const description = `commitEntropy for match ${matchId.slice(0, 10)}`;
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
-      // Convert string match ID to bytes32
+      console.log(`[Blockchain] Entropy request ID: ${entropyRequestId}`);
+      console.log(`[Blockchain] Seed: ${seed}`);
+      
+      // Convert match ID to bytes32
       const matchIdBytes32 = ethers.id(matchId);
-      const entropyBytes32 = ethers.id(entropyRequestId);
-      const tx = await this.stakeArena.commitEntropy(matchIdBytes32, entropyBytes32);
+      
+      // Convert request ID to bytes32 (it's a uint64, so pad it)
+      const requestIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(entropyRequestId), 32);
+      
+      // Hash the seed for on-chain storage
+      const seedHash = ethers.keccak256(ethers.toUtf8Bytes(seed));
+      
+      console.log(`[Blockchain] Match ID (bytes32): ${matchIdBytes32}`);
+      console.log(`[Blockchain] Request ID (bytes32): ${requestIdBytes32}`);
+      console.log(`[Blockchain] Seed hash: ${seedHash}`);
+      
+      const tx = await this.stakeArena.commitEntropy(matchIdBytes32, requestIdBytes32, seedHash);
       const receipt = await tx.wait();
-      console.log(`[Blockchain] commitEntropy confirmed: ${receipt.hash}`);
+      console.log(`[Blockchain] ✅ commitEntropy confirmed: ${receipt.hash}`);
+      console.log(`[Blockchain] View on explorer: ${process.env.SAGA_EXPLORER_URL || 'N/A'}/tx/${receipt.hash}`);
       return receipt;
     }, description);
 
     this.pendingTxs.push({ promise: txPromise, description });
     this.cleanupPendingTxs();
+  }
+
+  /**
+   * Legacy method for backward compatibility
+   * @deprecated Use commitEntropyToSaga instead
+   */
+  async commitEntropy(matchId: string, entropyRequestId: string): Promise<void> {
+    console.warn('[Blockchain] commitEntropy is deprecated, use commitEntropyToSaga with seed parameter');
+    // Create a dummy seed hash for backward compatibility
+    const dummySeedHash = ethers.keccak256(ethers.toUtf8Bytes(entropyRequestId));
+    await this.commitEntropyToSaga(matchId, entropyRequestId, entropyRequestId);
   }
 
   /**
