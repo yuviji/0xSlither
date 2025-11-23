@@ -321,30 +321,33 @@ class GameClient {
     }
 
     console.log('Waiting for death to settle on blockchain...');
+    console.log(`Checking match: ${CURRENT_MATCH_ID}, address: ${this.walletAddress}`);
     
-    // Poll until player is no longer active (max 15 seconds)
-    const maxAttempts = 30; // 30 * 500ms = 15 seconds
+    // Poll until player is no longer active (max 20 seconds)
+    const maxAttempts = 40; // 40 * 500ms = 20 seconds
     let attempts = 0;
     
     while (attempts < maxAttempts) {
       try {
         const isActive = await this.wallet.isActive(CURRENT_MATCH_ID, this.walletAddress);
         
+        console.log(`[Poll ${attempts + 1}/${maxAttempts}] isActive: ${isActive} (${(attempts * 500) / 1000}s elapsed)`);
+        
         if (!isActive) {
-          console.log(`Death settled after ${(attempts * 500) / 1000}s`);
+          console.log(`✅ Death settled on blockchain after ${(attempts * 500) / 1000}s`);
           return;
         }
         
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       } catch (error) {
-        console.error('Error checking active status:', error);
+        console.error(`[Poll ${attempts + 1}] Error checking active status:`, error);
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       }
     }
     
-    console.warn('Death settlement timeout - proceeding anyway');
+    console.warn('⚠️ Death settlement timeout after 20s - proceeding anyway (server may still be processing)');
   }
 
   private async handleTapOut(): Promise<void> {
