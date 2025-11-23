@@ -7,6 +7,7 @@ export enum MessageType {
   JOIN = 'JOIN',
   INPUT = 'INPUT',
   STATE = 'STATE',
+  DELTA_STATE = 'DELTA_STATE', // Delta-compressed state for bandwidth optimization
   DEAD = 'DEAD',
   PING = 'PING',
   PONG = 'PONG',
@@ -54,6 +55,21 @@ export interface StateMessage {
   entropySeed?: string; // The actual entropy seed from Pyth (for display/verification)
 }
 
+// Delta-compressed state message - only sends changes since last update
+export interface DeltaStateMessage {
+  type: MessageType.DELTA_STATE;
+  tick: number;
+  snakesAdded: SerializedSnake[]; // New snakes since last update
+  snakesUpdated: SerializedSnake[]; // Snakes that moved or changed
+  snakesRemoved: string[]; // IDs of snakes that died/left
+  pelletsChanged: Array<[number, SerializedPellet]>; // [index, pellet] pairs for changed pellets
+  leaderboardChanged?: SerializedLeaderboard; // Only sent if leaderboard changed
+  yourId?: string; // Only sent to new players
+  matchId?: string;
+  entropyPending?: boolean;
+  useFairRNG?: boolean;
+}
+
 export interface DeadMessage {
   type: MessageType.DEAD;
   finalScore: number;
@@ -69,7 +85,7 @@ export interface TapOutSuccessMessage {
   amountWithdrawn: number;
 }
 
-export type ServerMessage = StateMessage | DeadMessage | PongMessage | TapOutSuccessMessage;
+export type ServerMessage = StateMessage | DeltaStateMessage | DeadMessage | PongMessage | TapOutSuccessMessage;
 
 // Type guards
 export function isJoinMessage(msg: any): msg is JoinMessage {

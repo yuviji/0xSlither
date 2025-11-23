@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { GameServer } from './GameServer';
 import { BlockchainService } from './BlockchainService';
+import { DeltaCompressor } from './DeltaCompressor';
 import * as dotenv from 'dotenv';
 import {
   ClientMessage,
@@ -35,6 +36,7 @@ class WebSocketGameServer {
   private matchId: string;
   private players: Map<WebSocket, Player> = new Map();
   private nextPlayerId = 0;
+  private deltaCompressor: DeltaCompressor = new DeltaCompressor();
 
   constructor(port: number) {
     this.gameServer = new GameServer();
@@ -226,18 +228,26 @@ class WebSocketGameServer {
       this.gameServer.removeSnake(player.snakeId, true);
     }
     
+    // Remove player's delta compression state
+    this.deltaCompressor.removePlayer(player.id);
+    
     this.players.delete(player.ws);
   }
 
   private broadcastGameState(): void {
-    const state = this.gameServer.getGameState();
-    const message = JSON.stringify(state);
+    const fullState = this.gameServer.getGameState();
     
     for (const [ws, player] of this.players) {
       // Skip players that are disconnecting to avoid race conditions
-      if (!player.disconnecting && ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
+      if (player.disconnecting || ws.readyState !== WebSocket.OPEN) {
+        continue;
       }
+      
+      // Get delta or full state for this player
+      const stateForPlayer = this.deltaCompressor.getDeltaOrFullState(player.id, fullState);
+      
+      // Send the state
+      ws.send(JSON.stringify(stateForPlayer));
     }
   }
 

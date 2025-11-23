@@ -2,6 +2,7 @@ import {
   MessageType,
   ServerMessage,
   StateMessage,
+  DeltaStateMessage,
   DeadMessage,
   JoinMessage,
   InputMessage,
@@ -52,37 +53,114 @@ export class Game {
 
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === MessageType.STATE) {
-      this.previousState = this.currentState;
-      this.currentState = message;
-      this.lastUpdateTime = Date.now();
-
-      // When server sends yourId, it means we have an active snake (or just joined/rejoined)
-      // Always process it, even if it's the same ID (handles respawn case)
-      if (message.yourId) {
-        const isNewOrChanged = this.playerId !== message.yourId;
-        this.playerId = message.yourId;
-        
-        if (isNewOrChanged) {
-          console.log('Received player ID:', this.playerId);
-        } else {
-          console.log('Received player ID (rejoined with same ID):', this.playerId);
-        }
-        
-        // Always notify when server sends yourId (handles respawn/rejoin)
-        if (this.onPlayerIdReceivedCallback) {
-          this.onPlayerIdReceivedCallback(this.playerId);
-        }
-      }
-
-      if (this.onStateUpdateCallback) {
-        this.onStateUpdateCallback(message);
-      }
+      this.handleFullState(message);
+    } else if (message.type === MessageType.DELTA_STATE) {
+      this.handleDeltaState(message as DeltaStateMessage);
     } else if (message.type === MessageType.DEAD) {
       const deadMessage = message as DeadMessage;
       console.log('You died! Final score:', deadMessage.finalScore);
       if (this.onDeadCallback) {
         this.onDeadCallback(deadMessage.finalScore);
       }
+    }
+  }
+
+  private handleFullState(message: StateMessage): void {
+    this.previousState = this.currentState;
+    this.currentState = message;
+    this.lastUpdateTime = Date.now();
+
+    // When server sends yourId, it means we have an active snake (or just joined/rejoined)
+    // Always process it, even if it's the same ID (handles respawn case)
+    if (message.yourId) {
+      const isNewOrChanged = this.playerId !== message.yourId;
+      this.playerId = message.yourId;
+      
+      if (isNewOrChanged) {
+        console.log('Received player ID:', this.playerId);
+      } else {
+        console.log('Received player ID (rejoined with same ID):', this.playerId);
+      }
+      
+      // Always notify when server sends yourId (handles respawn/rejoin)
+      if (this.onPlayerIdReceivedCallback) {
+        this.onPlayerIdReceivedCallback(this.playerId);
+      }
+    }
+
+    if (this.onStateUpdateCallback) {
+      this.onStateUpdateCallback(message);
+    }
+  }
+
+  private handleDeltaState(delta: DeltaStateMessage): void {
+    // If we don't have a current state, we can't apply delta (shouldn't happen)
+    if (!this.currentState) {
+      console.warn('Received delta without current state, requesting full state...');
+      return;
+    }
+
+    this.previousState = this.currentState;
+
+    // Create a new state by applying delta to current state
+    const snakesMap = new Map<string, SerializedSnake>();
+    
+    // Start with current snakes
+    for (const snake of this.currentState.snakes) {
+      snakesMap.set(snake.id, snake);
+    }
+
+    // Remove snakes
+    for (const id of delta.snakesRemoved) {
+      snakesMap.delete(id);
+    }
+
+    // Add new snakes
+    for (const snake of delta.snakesAdded) {
+      snakesMap.set(snake.id, snake);
+    }
+
+    // Update changed snakes
+    for (const snake of delta.snakesUpdated) {
+      snakesMap.set(snake.id, snake);
+    }
+
+    // Apply pellet changes
+    const pellets = [...this.currentState.pellets];
+    for (const [index, pellet] of delta.pelletsChanged) {
+      pellets[index] = pellet;
+    }
+
+    // Create new state
+    this.currentState = {
+      type: MessageType.STATE,
+      tick: delta.tick,
+      snakes: Array.from(snakesMap.values()),
+      pellets,
+      leaderboard: delta.leaderboardChanged || this.currentState.leaderboard,
+      matchId: delta.matchId || this.currentState.matchId,
+      entropyPending: delta.entropyPending !== undefined ? delta.entropyPending : this.currentState.entropyPending,
+      useFairRNG: delta.useFairRNG !== undefined ? delta.useFairRNG : this.currentState.useFairRNG,
+    };
+
+    this.lastUpdateTime = Date.now();
+
+    // Handle yourId if present in delta (for respawn)
+    if (delta.yourId) {
+      const isNewOrChanged = this.playerId !== delta.yourId;
+      this.playerId = delta.yourId;
+      
+      if (isNewOrChanged) {
+        console.log('Received player ID (delta):', this.playerId);
+      }
+      
+      if (this.onPlayerIdReceivedCallback) {
+        this.onPlayerIdReceivedCallback(this.playerId);
+      }
+    }
+
+    if (this.onStateUpdateCallback) {
+      this.onStateUpdateCallback(this.currentState);
     }
   }
 
