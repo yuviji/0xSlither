@@ -33,6 +33,10 @@ export class BlockchainService {
   private pendingTxs: PendingTransaction[] = [];
   private readonly maxRetries = 3;
   private readonly retryDelay = 2000; // 2 seconds
+  
+  // Transaction queue per address to prevent race conditions
+  // Each address has a promise chain that ensures operations are serialized
+  private addressQueues: Map<string, Promise<void>> = new Map();
 
   constructor(
     rpcUrl: string,
@@ -63,6 +67,7 @@ export class BlockchainService {
   /**
    * Report that one player ate another
    * Non-blocking, fire-and-forget with retry logic
+   * Operations are queued per address to prevent race conditions
    */
   async reportEat(
     matchId: string,
@@ -71,28 +76,36 @@ export class BlockchainService {
   ): Promise<void> {
     const description = `reportEat: ${eaterAddress.slice(0, 8)} ate ${eatenAddress.slice(0, 8)} in match ${matchId.slice(0, 10)}`;
     
-    const txPromise = this.executeWithRetry(async () => {
-      console.log(`[Blockchain] ${description}`);
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      const tx = await this.stakeArena.reportEat(
-        matchIdBytes32,
-        eaterAddress,
-        eatenAddress
-      );
-      const receipt = await tx.wait();
-      console.log(`[Blockchain] reportEat confirmed: ${receipt.hash}`);
-      return receipt;
-    }, description);
-
-    this.pendingTxs.push({ promise: txPromise, description });
-    this.cleanupPendingTxs();
+    // Queue this operation for both addresses involved
+    // This prevents race conditions like simultaneous eat/death reports
+    const operation = async () => {
+      const result = await this.executeWithRetry(async () => {
+        console.log(`[Blockchain] ${description}`);
+        // Convert string match ID to bytes32
+        const matchIdBytes32 = ethers.id(matchId);
+        const tx = await this.stakeArena.reportEat(
+          matchIdBytes32,
+          eaterAddress,
+          eatenAddress
+        );
+        const receipt = await tx.wait();
+        console.log(`[Blockchain] reportEat confirmed: ${receipt.hash}`);
+        return receipt;
+      }, description);
+      
+      return result;
+    };
+    
+    // Queue for the eaten player (victim)
+    // The eater can continue with other operations
+    this.queueForAddress(eatenAddress, operation);
   }
 
   /**
    * Report that a player died from self-inflicted causes
    * (wall collision, eating self, etc.) - stake goes to server
    * Non-blocking, fire-and-forget with retry logic
+   * Operations are queued per address to prevent race conditions
    */
   async reportSelfDeath(
     matchId: string,
@@ -101,22 +114,28 @@ export class BlockchainService {
   ): Promise<void> {
     const description = `reportSelfDeath: ${playerAddress.slice(0, 8)} died with score ${score} in match ${matchId.slice(0, 10)}`;
     
-    const txPromise = this.executeWithRetry(async () => {
-      console.log(`[Blockchain] ${description}`);
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      const tx = await this.stakeArena.reportSelfDeath(
-        matchIdBytes32,
-        playerAddress,
-        score
-      );
-      const receipt = await tx.wait();
-      console.log(`[Blockchain] reportSelfDeath confirmed: ${receipt.hash}`);
-      return receipt;
-    }, description);
-
-    this.pendingTxs.push({ promise: txPromise, description });
-    this.cleanupPendingTxs();
+    // Queue this operation for the player's address
+    // This prevents race conditions like multiple death reports
+    const operation = async () => {
+      const result = await this.executeWithRetry(async () => {
+        console.log(`[Blockchain] ${description}`);
+        // Convert string match ID to bytes32
+        const matchIdBytes32 = ethers.id(matchId);
+        const tx = await this.stakeArena.reportSelfDeath(
+          matchIdBytes32,
+          playerAddress,
+          score
+        );
+        const receipt = await tx.wait();
+        console.log(`[Blockchain] reportSelfDeath confirmed: ${receipt.hash}`);
+        return receipt;
+      }, description);
+      
+      return result;
+    };
+    
+    // Queue for the player's address
+    this.queueForAddress(playerAddress, operation);
   }
 
   /**
@@ -256,6 +275,33 @@ export class BlockchainService {
       console.error('[Blockchain] Error checking active status:', error);
       return false;
     }
+  }
+
+  /**
+   * Queue an operation for a specific address to prevent race conditions
+   * Operations for the same address are serialized (executed one after another)
+   */
+  private queueForAddress(address: string, operation: () => Promise<void>): void {
+    // Get the current queue for this address (or create an empty resolved promise)
+    const currentQueue = this.addressQueues.get(address) || Promise.resolve();
+    
+    // Chain the new operation to the existing queue
+    const newQueue = currentQueue
+      .then(() => operation())
+      .catch((error) => {
+        console.error(`[Blockchain] Queued operation failed for ${address.slice(0, 8)}:`, error);
+      });
+    
+    // Update the queue for this address
+    this.addressQueues.set(address, newQueue);
+    
+    // Clean up the queue entry after operation completes
+    newQueue.finally(() => {
+      // If this is still the active queue, remove it
+      if (this.addressQueues.get(address) === newQueue) {
+        this.addressQueues.delete(address);
+      }
+    });
   }
 
   /**
