@@ -123,10 +123,14 @@ class WebSocketGameServer {
   }
 
   private handleJoin(player: Player, name: string, address: string): void {
-    // Remove old snake if exists
+    // Remove old snake if exists for this player object
     if (player.snakeId) {
       this.gameServer.removeSnake(player.snakeId);
     }
+
+    // Remove any existing snake with the same wallet address
+    // (handles case where player disconnected improperly and is rejoining)
+    this.gameServer.removeSnakeByAddress(address);
 
     // Create new snake with required wallet address
     const snake = this.gameServer.addSnake(player.id, name, address);

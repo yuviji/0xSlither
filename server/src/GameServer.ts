@@ -167,6 +167,16 @@ export class GameServer {
     console.log(`Snake ${id} removed`);
   }
 
+  removeSnakeByAddress(address: string): void {
+    for (const [id, snake] of this.snakes.entries()) {
+      if (snake.address === address) {
+        this.snakes.delete(id);
+        console.log(`Snake ${id} with address ${address} removed (duplicate login cleanup)`);
+        return;
+      }
+    }
+  }
+
   getSnake(id: string): SnakeEntity | undefined {
     return this.snakes.get(id);
   }
