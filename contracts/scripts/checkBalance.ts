@@ -21,7 +21,7 @@ async function main() {
   const symbol = await GameToken.symbol();
   
   console.log("Address:", address);
-  console.log("Balance:", ethers.formatEther(balance), symbol);
+  console.log("Balance:", Math.floor(parseFloat(ethers.formatEther(balance))), symbol);
 }
 
 main()

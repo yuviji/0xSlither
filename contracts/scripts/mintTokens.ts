@@ -33,7 +33,7 @@ async function main() {
 
   // Verify balance
   const balance = await GameToken.balanceOf(recipientAddress);
-  console.log("New balance:", ethers.formatEther(balance), "SSS");
+  console.log("New balance:", Math.floor(parseFloat(ethers.formatEther(balance))), "SSS");
 }
 
 main()

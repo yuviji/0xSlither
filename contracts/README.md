@@ -133,17 +133,6 @@ pnpm run leaderboard     # View on-chain leaderboard
 
 **Total Supply:** 1000 SSS (fixed, cannot mint more)
 
-**Suggested Distribution:**
-- Deployment: ~1 SSS (gas)
-- Server wallet: ~10-50 SSS (for reportEat transactions)
-- Player wallets: ~900 SSS (distributed for gameplay)
-- Reserve: ~50 SSS
-
-**Typical Stakes:**
-- Small stakes: 0.1 - 1 SSS
-- Medium stakes: 1 - 10 SSS
-- High stakes: 10 - 50 SSS
-
 ## Security
 
 - ✅ ReentrancyGuard on all state-changing functions
@@ -172,7 +161,7 @@ pnpm run deploy
 
 # Check balance
 pnpm run balance 0x027dc86AEFE8aa96353c2aeE9FF06d3BE4ff40Eb
-# Output: Balance: 1000.0 SSS
+# Output: Balance: 1000 SSS
 
 # Authorize server
 echo "SERVER_ADDRESS=0xDEF456..." >> .env

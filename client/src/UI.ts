@@ -196,7 +196,7 @@ export class UI {
   }
 
   updateTokenBalance(balance: string): void {
-    this.tokenBalance.textContent = parseFloat(balance).toFixed(2);
+    this.tokenBalance.textContent = balance;
   }
 
   getStakeAmount(): string {
@@ -211,7 +211,7 @@ export class UI {
 
   updateOnChainStats(bestScore: number, currentStake: string): void {
     this.bestScore.textContent = bestScore.toString();
-    this.currentStake.textContent = `${parseFloat(currentStake).toFixed(2)} SSS`;
+    this.currentStake.textContent = `${currentStake} SSS`;
     
     // Also update the best score on death screen if visible
     if (!this.deathScreen.classList.contains('hidden')) {

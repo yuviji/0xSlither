@@ -208,7 +208,7 @@ export class BlockchainService {
       // Convert string match ID to bytes32
       const matchIdBytes32 = ethers.id(matchId);
       const stake: bigint = await this.stakeArena.getStake(matchIdBytes32, playerAddress);
-      return Number(ethers.formatEther(stake));
+      return Math.floor(Number(ethers.formatEther(stake)));
     } catch (error) {
       console.error('[Blockchain] Error fetching stake:', error);
       return 0;

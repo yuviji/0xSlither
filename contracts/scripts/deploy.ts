@@ -8,7 +8,7 @@ async function main() {
   console.log("Deploying with account:", deployer.address);
   
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log("Account balance:", ethers.formatEther(balance), "SSS");
+  console.log("Account balance:", Math.floor(parseFloat(ethers.formatEther(balance))), "SSS");
 
   // Deploy StakeArena (no GameToken needed!)
   console.log("\n1. Deploying StakeArena...");

@@ -229,7 +229,7 @@ export class WalletService {
     try {
       // Get native SSS balance
       const balance: bigint = await this.provider.getBalance(this.address);
-      return ethers.formatEther(balance);
+      return Math.floor(parseFloat(ethers.formatEther(balance))).toString();
     } catch (error) {
       console.error('Error getting SSS balance:', error);
       return '0';
@@ -316,7 +316,7 @@ export class WalletService {
       // Convert string match ID to bytes32
       const matchIdBytes32 = ethers.id(matchId);
       const stake: bigint = await this.stakeArena.getStake(matchIdBytes32, address);
-      return ethers.formatEther(stake);
+      return Math.floor(parseFloat(ethers.formatEther(stake))).toString();
     } catch (error) {
       console.error('Error fetching current stake:', error);
       return '0';
