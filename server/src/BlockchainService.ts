@@ -84,19 +84,8 @@ export class BlockchainService {
       const result = await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
         
-        // Check if both players are active before reporting
-        const matchIdBytes32 = ethers.id(matchId);
-        const eaterActive = await this.stakeArena.isActive(matchIdBytes32, eaterAddress);
-        const eatenActive = await this.stakeArena.isActive(matchIdBytes32, eatenAddress);
-        console.log(`[Blockchain] Eater ${eaterAddress.slice(0, 8)} isActive: ${eaterActive}`);
-        console.log(`[Blockchain] Eaten ${eatenAddress.slice(0, 8)} isActive: ${eatenActive}`);
-        
-        if (!eaterActive || !eatenActive) {
-          console.log(`[Blockchain] One or both players not active, skipping reportEat`);
-          return null;
-        }
-        
         // Convert string match ID to bytes32
+        const matchIdBytes32 = ethers.id(matchId);
         const tx = await this.stakeArena.reportEat(
           matchIdBytes32,
           eaterAddress,
@@ -135,17 +124,8 @@ export class BlockchainService {
       const result = await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
         
-        // Check if player is active before reporting
-        const matchIdBytes32 = ethers.id(matchId);
-        const isActive = await this.stakeArena.isActive(matchIdBytes32, playerAddress);
-        console.log(`[Blockchain] Player ${playerAddress.slice(0, 8)} isActive: ${isActive}`);
-        
-        if (!isActive) {
-          console.log(`[Blockchain] Player ${playerAddress.slice(0, 8)} not active, skipping reportSelfDeath`);
-          return null;
-        }
-        
         // Convert string match ID to bytes32
+        const matchIdBytes32 = ethers.id(matchId);
         const tx = await this.stakeArena.reportSelfDeath(
           matchIdBytes32,
           playerAddress,

@@ -252,7 +252,11 @@ export class WalletService {
     // Send SSS with the transaction (no approval needed!)
     const tx = await this.stakeArena.enterMatch(matchIdBytes32, { value: amountWei });
     console.log('Transaction:', tx);
-    await tx.wait();
+    const receipt = await tx.wait(2); // Wait for 2 confirmations for better finality
+    console.log('Transaction confirmed:', receipt.hash);
+    
+    // Add a small delay to ensure all RPC nodes have indexed the transaction
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     console.log('Successfully entered match');
     return true;
