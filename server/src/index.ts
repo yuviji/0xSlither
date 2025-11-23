@@ -19,6 +19,8 @@ dotenv.config();
 const PORT = process.env.PORT;
 
 class Player {
+  public disconnecting: boolean = false;
+  
   constructor(
     public ws: WebSocket,
     public id: string,
@@ -182,30 +184,41 @@ class WebSocketGameServer {
     this.sendMessage(player.ws, tapOutMsg);
   }
 
-  private handleDisconnect(player: Player): void {
+  private async handleDisconnect(player: Player): Promise<void> {
     console.log(`Player ${player.id} disconnected`);
     
+    // Mark player as disconnecting to prevent race conditions with game tick
+    player.disconnecting = true;
+    
     if (player.snakeId) {
-      // Get snake info before removing
+      // Get snake info before killing it
       const snake = this.gameServer.getSnake(player.snakeId);
       
       // If snake is still alive and has a wallet address, report disconnect as self-death
       if (snake && snake.alive && snake.address && this.blockchain && this.matchId) {
         const snakeScore = snake.getScore();
         console.log(`Player ${player.id} disconnected with active snake (score: ${snakeScore}) - checking on-chain status`);
-        // Check if player is active on-chain before reporting self death
-        this.blockchain.isActive(this.matchId, snake.address)
-          .then(isActive => {
-            if (isActive && this.blockchain && snake.address) {
-              console.log(`Player ${player.id} (${snake.address}) has active stake - transferring to server`);
-              return this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore);
-            } else {
-              console.log(`Player ${player.id} (${snake.address}) not active in match, skipping disconnect report`);
-            }
-          })
-          .catch(err => console.error('Error checking active status or reporting disconnect:', err));
+        
+        // CRITICAL: Immediately kill the snake to prevent other players from eating it
+        // while we're doing async blockchain operations
+        snake.kill();
+        
+        try {
+          // Now safely do blockchain operations - snake can't be eaten anymore
+          const isActive = await this.blockchain.isActive(this.matchId, snake.address);
+          
+          if (isActive && this.blockchain && snake.address) {
+            console.log(`Player ${player.id} (${snake.address}) has active stake - transferring to server`);
+            await this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore);
+          } else {
+            console.log(`Player ${player.id} (${snake.address}) not active in match, skipping disconnect report`);
+          }
+        } catch (err) {
+          console.error('Error checking active status or reporting disconnect:', err);
+        }
       }
       
+      // Remove snake only after blockchain operations complete
       this.gameServer.removeSnake(player.snakeId);
     }
     
@@ -217,7 +230,8 @@ class WebSocketGameServer {
     const message = JSON.stringify(state);
     
     for (const [ws, player] of this.players) {
-      if (ws.readyState === WebSocket.OPEN) {
+      // Skip players that are disconnecting to avoid race conditions
+      if (!player.disconnecting && ws.readyState === WebSocket.OPEN) {
         ws.send(message);
       }
     }
@@ -225,6 +239,9 @@ class WebSocketGameServer {
 
   private checkDeadSnakes(): void {
     for (const [ws, player] of this.players) {
+      // Skip players that are disconnecting to avoid race conditions
+      if (player.disconnecting) continue;
+      
       if (player.snakeId && this.gameServer.isSnakeDead(player.snakeId)) {
         const score = this.gameServer.getSnakeScore(player.snakeId);
         const deadMessage: DeadMessage = {
