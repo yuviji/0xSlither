@@ -10,7 +10,7 @@ import {
 interface PlayerState {
   lastTick: number;
   lastSnakes: Map<string, SerializedSnake>;
-  lastPellets: Map<string, SerializedPellet>;
+  lastPellets: SerializedPellet[]; // Store as array, indexed by position
   lastLeaderboard: SerializedLeaderboard;
 }
 
@@ -77,12 +77,13 @@ export class DeltaCompressor {
     }
 
     // Check pellets - only send changed indices
+    // Compare pellets by index position, not by x,y coordinates
     const pelletsChanged: Array<[number, SerializedPellet]> = [];
     for (let i = 0; i < currentState.pellets.length; i++) {
       const currentPellet = currentState.pellets[i];
-      const pelletKey = this.pelletKey(currentPellet);
-      const prevPellet = playerState.lastPellets.get(pelletKey);
+      const prevPellet = playerState.lastPellets[i];
       
+      // If no previous pellet at this index or it changed, send the update
       if (!prevPellet || this.pelletChanged(prevPellet, currentPellet)) {
         pelletsChanged.push([i, currentPellet]);
       }
@@ -151,13 +152,6 @@ export class DeltaCompressor {
   }
 
   /**
-   * Create a unique key for a pellet
-   */
-  private pelletKey(pellet: SerializedPellet): string {
-    return `${pellet[0]},${pellet[1]}`;
-  }
-
-  /**
    * Update stored state for a player
    */
   private updatePlayerState(playerId: string, state: StateMessage): void {
@@ -166,15 +160,11 @@ export class DeltaCompressor {
       snakesMap.set(snake.id, snake);
     }
 
-    const pelletsMap = new Map<string, SerializedPellet>();
-    for (const pellet of state.pellets) {
-      pelletsMap.set(this.pelletKey(pellet), pellet);
-    }
-
+    // Store pellets as array for efficient index-based comparison
     this.playerStates.set(playerId, {
       lastTick: state.tick,
       lastSnakes: snakesMap,
-      lastPellets: pelletsMap,
+      lastPellets: [...state.pellets],
       lastLeaderboard: state.leaderboard,
     });
   }
