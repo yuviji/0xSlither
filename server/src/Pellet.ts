@@ -11,6 +11,7 @@ export class PelletManager {
   private pellets: Map<string, Pellet> = new Map();
   private nextId = 0;
   private deterministicMode: boolean = false;
+  private changedPelletIds: Set<string> = new Set();
 
   constructor(count: number, initialPellets?: Array<{ x: number; y: number; size: number; color: string }>) {
     if (initialPellets && initialPellets.length > 0) {
@@ -55,8 +56,7 @@ export class PelletManager {
 
   removePellet(id: string): void {
     this.pellets.delete(id);
-    // Immediately respawn
-    this.spawnPellet();
+    // Pellets are NOT respawned - once consumed, they're gone
   }
 
   getPellets(): Pellet[] {
@@ -65,6 +65,25 @@ export class PelletManager {
 
   getPellet(id: string): Pellet | undefined {
     return this.pellets.get(id);
+  }
+
+  getChangedPellets(): Pellet[] {
+    const changed: Pellet[] = [];
+    for (const id of this.changedPelletIds) {
+      const pellet = this.pellets.get(id);
+      if (pellet) {
+        changed.push(pellet);
+      }
+    }
+    return changed;
+  }
+
+  clearChanges(): void {
+    this.changedPelletIds.clear();
+  }
+
+  hasChanges(): boolean {
+    return this.changedPelletIds.size > 0;
   }
 }
 

@@ -7,6 +7,7 @@ import {
   JoinMessage,
   InputMessage,
   SerializedSnake,
+  SerializedPellet,
 } from '@0xslither/shared';
 
 export class Game {
@@ -125,11 +126,19 @@ export class Game {
       snakesMap.set(snake.id, snake);
     }
 
-    // Apply pellet changes
-    const pellets = [...this.currentState.pellets];
-    for (const [index, pellet] of delta.pelletsChanged) {
-      pellets[index] = pellet;
+    // Apply pellet changes efficiently using ID-based tracking
+    // Build a map of current pellets by ID
+    const pelletsMap = new Map<string, SerializedPellet>();
+    for (const pellet of this.currentState.pellets) {
+      pelletsMap.set(pellet[0], pellet); // pellet[0] is the ID
     }
+    
+    // Remove eaten pellets (pellets never respawn, so only removals are tracked)
+    for (const id of delta.pelletsRemoved) {
+      pelletsMap.delete(id);
+    }
+    
+    const pellets = Array.from(pelletsMap.values());
 
     // Create new state, preserving entropy info from initial full state
     // (entropy fields are only sent in full state messages, not deltas, to save bandwidth)

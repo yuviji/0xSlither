@@ -64,7 +64,7 @@ export interface DeltaStateMessage {
   snakesAdded: SerializedSnake[]; // New snakes since last update
   snakesUpdated: SerializedSnake[]; // Snakes that moved or changed
   snakesRemoved: string[]; // IDs of snakes that died/left
-  pelletsChanged: Array<[number, SerializedPellet]>; // [index, pellet] pairs for changed pellets
+  pelletsRemoved: string[]; // IDs of pellets that were eaten (pellets never respawn)
   leaderboardChanged?: SerializedLeaderboard; // Only sent if leaderboard changed
   yourId?: string; // Only sent to new players
   matchId?: string;

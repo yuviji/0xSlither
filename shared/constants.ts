@@ -18,7 +18,7 @@ export const SNAKE_SEGMENT_RADIUS = 8;
 export const SNAKE_GROWTH_PER_PELLET = 3; // Default segments added per pellet (actual growth varies by pellet size)
 
 // Pellet settings
-export const PELLET_COUNT = 500;
+export const PELLET_COUNT = 200;
 export const PELLET_MIN_SIZE = 4;
 export const PELLET_MAX_SIZE = 8;
 export const PELLET_COLORS = [

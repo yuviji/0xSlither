@@ -46,7 +46,7 @@ export type SerializedSnake = {
   color: string;
 };
 
-export type SerializedPellet = [number, number, number, string]; // [x, y, size, color]
+export type SerializedPellet = [string, number, number, number, string]; // [id, x, y, size, color]
 
 export type SerializedLeaderboard = [string, number, string?][]; // [name, score, address?]
 

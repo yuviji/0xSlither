@@ -379,7 +379,7 @@ export class GameServer {
 
     const pellets: SerializedPellet[] = this.pelletManager
       .getPellets()
-      .map(pellet => [pellet.x, pellet.y, pellet.size, pellet.color] as SerializedPellet);
+      .map(pellet => [pellet.id, pellet.x, pellet.y, pellet.size, pellet.color] as SerializedPellet);
 
     const leaderboard = Leaderboard.compute(Array.from(this.snakes.values()));
 

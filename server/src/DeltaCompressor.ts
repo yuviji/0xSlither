@@ -10,7 +10,7 @@ import {
 interface PlayerState {
   lastTick: number;
   lastSnakes: Map<string, SerializedSnake>;
-  lastPellets: SerializedPellet[]; // Store as array, indexed by position
+  lastPellets: Map<string, SerializedPellet>; // Map by pellet ID for efficient lookups
   lastLeaderboard: SerializedLeaderboard;
 }
 
@@ -76,16 +76,19 @@ export class DeltaCompressor {
       }
     }
 
-    // Check pellets - only send changed indices
-    // Compare pellets by index position, not by x,y coordinates
-    const pelletsChanged: Array<[number, SerializedPellet]> = [];
-    for (let i = 0; i < currentState.pellets.length; i++) {
-      const currentPellet = currentState.pellets[i];
-      const prevPellet = playerState.lastPellets[i];
-      
-      // If no previous pellet at this index or it changed, send the update
-      if (!prevPellet || this.pelletChanged(prevPellet, currentPellet)) {
-        pelletsChanged.push([i, currentPellet]);
+    // Check pellets - only track removed (pellets never respawn, so no additions after init)
+    const pelletsRemoved: string[] = [];
+    
+    // Build set of current pellet IDs
+    const currentPelletIds = new Set<string>();
+    for (const pellet of currentState.pellets) {
+      currentPelletIds.add(pellet[0]); // pellet[0] is the ID
+    }
+    
+    // Find removed pellets (in previous state but not in current)
+    for (const [id] of playerState.lastPellets) {
+      if (!currentPelletIds.has(id)) {
+        pelletsRemoved.push(id);
       }
     }
 
@@ -101,7 +104,7 @@ export class DeltaCompressor {
       snakesAdded,
       snakesUpdated,
       snakesRemoved,
-      pelletsChanged,
+      pelletsRemoved, // Only removals - pellets never respawn after initial spawn
       leaderboardChanged: leaderboardChanged ? currentState.leaderboard : undefined,
       matchId: currentState.matchId,
       entropyPending: currentState.entropyPending,
@@ -128,13 +131,6 @@ export class DeltaCompressor {
     return headMoved || segmentsChanged || angleChanged;
   }
 
-  /**
-   * Check if pellet changed
-   */
-  private pelletChanged(prev: SerializedPellet, current: SerializedPellet): boolean {
-    return prev[0] !== current[0] || prev[1] !== current[1] || 
-           prev[2] !== current[2] || prev[3] !== current[3];
-  }
 
   /**
    * Check if leaderboard changed
@@ -160,11 +156,16 @@ export class DeltaCompressor {
       snakesMap.set(snake.id, snake);
     }
 
-    // Store pellets as array for efficient index-based comparison
+    // Store pellets in a Map by ID for efficient delta comparison
+    const pelletsMap = new Map<string, SerializedPellet>();
+    for (const pellet of state.pellets) {
+      pelletsMap.set(pellet[0], pellet); // pellet[0] is the ID
+    }
+
     this.playerStates.set(playerId, {
       lastTick: state.tick,
       lastSnakes: snakesMap,
-      lastPellets: [...state.pellets],
+      lastPellets: pelletsMap,
       lastLeaderboard: state.leaderboard,
     });
   }
