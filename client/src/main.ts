@@ -298,9 +298,6 @@ class GameClient {
       return;
     }
 
-    const confirmed = confirm('Are you sure you want to tap out and withdraw your stake?');
-    if (!confirmed) return;
-
     // Get current score before disconnecting
     const playerSnake = this.game.getPlayerSnake();
     const currentScore = playerSnake ? playerSnake.segments.length : 0;
