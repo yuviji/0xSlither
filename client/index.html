@@ -253,43 +253,41 @@
     }
 
     #onChainStats {
-      position: absolute;
-      top: 100px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.85);
-      padding: 15px 20px;
-      border-radius: 8px;
-      min-width: 200px;
-      border: 2px solid rgba(0, 255, 136, 0.4);
-      backdrop-filter: blur(5px);
-      pointer-events: auto;
-      box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 16px;
+      border-radius: 0 0 8px 8px;
+      border-top: 1px solid rgba(0, 255, 136, 0.2);
+      margin-top: 8px;
     }
 
     #onChainStats h3 {
-      font-size: 14px;
-      margin-bottom: 10px;
+      font-size: 12px;
+      margin-bottom: 8px;
       color: #00ff88;
       text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
       font-weight: 700;
       letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.9;
     }
 
     #onChainStats .stat {
       display: flex;
       justify-content: space-between;
-      padding: 5px 0;
-      font-size: 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(0, 255, 136, 0.08);
     }
 
     #onChainStats .stat:last-child {
       border-bottom: none;
+      padding-bottom: 0;
     }
 
     #onChainStats .label {
       color: #00ff88;
-      opacity: 0.7;
+      opacity: 0.6;
+      font-size: 12px;
     }
 
     #onChainStats .value {
@@ -303,64 +301,94 @@
       position: absolute;
       top: 20px;
       right: 20px;
-      background: rgba(0, 0, 0, 0.85);
-      padding: 15px 20px;
-      border-radius: 8px;
-      min-width: 200px;
-      border: 2px solid rgba(0, 255, 136, 0.4);
-      backdrop-filter: blur(5px);
-      box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+      background: rgba(10, 20, 15, 0.92);
+      padding: 0;
+      border-radius: 12px;
+      min-width: 220px;
+      border: 2px solid rgba(0, 255, 136, 0.5);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.25), 0 8px 32px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
     }
 
     #leaderboard h2 {
-      font-size: 18px;
-      margin-bottom: 10px;
+      font-size: 16px;
+      margin: 0;
+      padding: 14px 18px;
       color: #00ff88;
       text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
       font-weight: 700;
       letter-spacing: 2px;
+      text-transform: uppercase;
+      background: rgba(0, 255, 136, 0.08);
+      border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+    }
+
+    .leaderboard-content {
+      padding: 14px 18px;
     }
 
     #leaderboard ol {
       list-style: none;
       padding: 0;
+      margin: 0;
     }
 
     #leaderboard li {
-      padding: 5px 0;
-      font-size: 14px;
+      padding: 6px 0;
+      font-size: 13px;
       display: flex;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(0, 255, 136, 0.08);
     }
 
     #leaderboard li:last-child {
       border-bottom: none;
+      padding-bottom: 0;
     }
 
     #leaderboard li:first-child .name {
-      color: #00ffaa;
-      text-shadow: 0 0 10px rgba(0, 255, 170, 0.6);
+      color: #FFD700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+      font-weight: 800;
+    }
+
+    #leaderboard li:first-child .score {
+      color: #FFD700;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
     }
 
     #leaderboard li:nth-child(2) .name {
-      color: #00dd88;
-      text-shadow: 0 0 8px rgba(0, 221, 136, 0.4);
+      color: #C0C0C0;
+      text-shadow: 0 0 8px rgba(192, 192, 192, 0.4);
+      font-weight: 700;
+    }
+
+    #leaderboard li:nth-child(2) .score {
+      color: #C0C0C0;
+      text-shadow: 0 0 6px rgba(192, 192, 192, 0.3);
     }
 
     #leaderboard li:nth-child(3) .name {
-      color: #00bb66;
-      text-shadow: 0 0 6px rgba(0, 187, 102, 0.3);
+      color: #CD7F32;
+      text-shadow: 0 0 6px rgba(205, 127, 50, 0.3);
+      font-weight: 700;
+    }
+
+    #leaderboard li:nth-child(3) .score {
+      color: #CD7F32;
+      text-shadow: 0 0 5px rgba(205, 127, 50, 0.2);
     }
 
     #leaderboard .name {
-      font-weight: bold;
+      font-weight: 600;
     }
 
     #leaderboard .score {
       color: #00ff88;
       text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
       font-variant-numeric: tabular-nums;
+      font-weight: 600;
     }
 
     #connectionStatus {
@@ -496,18 +524,19 @@
 
     <div id="leaderboard" class="hidden">
       <h2>Leaderboard</h2>
-      <ol id="leaderboardList"></ol>
-    </div>
-
-    <div id="onChainStats" class="hidden">
-      <h3>On-Chain Stats</h3>
-      <div class="stat">
-        <span class="label">Best Score:</span>
-        <span class="value" id="bestScore">0</span>
+      <div class="leaderboard-content">
+        <ol id="leaderboardList"></ol>
       </div>
-      <div class="stat">
-        <span class="label">Current Stake:</span>
-        <span class="value" id="currentStake">0 SSS</span>
+      <div id="onChainStats" class="hidden">
+        <h3>On-Chain Stats</h3>
+        <div class="stat">
+          <span class="label">Best Score:</span>
+          <span class="value" id="bestScore">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Current Stake:</span>
+          <span class="value" id="currentStake">0 SSS</span>
+        </div>
       </div>
     </div>
 
