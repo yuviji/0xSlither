@@ -114,8 +114,8 @@ async function main() {
     
     // Calculate amounts
     const amountWithdrawn = contractBalance;
-    const gasUsed = receipt?.gasUsed || 0n;
-    const gasPrice = receipt?.gasPrice || 0n;
+    const gasUsed = BigInt(receipt?.gasUsed || 0n);
+    const gasPrice = BigInt(receipt?.gasPrice || 0n);
     const gasCost = gasUsed * gasPrice;
     const netGain = amountWithdrawn - gasCost;
     
