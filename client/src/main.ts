@@ -11,7 +11,7 @@ const WSS_URL = import.meta.env.VITE_WSS_URL;
 // Contract addresses (configure these after deployment)
 const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
 
-// Match ID (will be provided by server or generated)
+// Match ID (will be provided by server)
 let CURRENT_MATCH_ID = `match-${Date.now()}`;
 
 class GameClient {
@@ -104,18 +104,25 @@ class GameClient {
       console.log('Player died with score:', score);
       this.isPlaying = false;
       this.isSpectating = true;
-      this.ui.showDeathScreen(score);
       this.ui.hideGameControls(); // Hide tap out button after death
       
       // Reset tracking
       this.lastPelletTokens = 0;
       this.lastSnakeLength = 0;
       
-      // Wait for blockchain transaction to process, then update stats one final time
-      setTimeout(async () => {
-        await this.updateScoreAfterDeath(score);
-        console.log('Final stats updated after death');
-      }, 3000); // Wait 3 seconds for blockchain confirmation
+      // Show loading screen while blockchain processes death
+      this.ui.showLoading('Processing death on blockchain...');
+      
+      // Wait for the player to become inactive on-chain
+      await this.waitForDeathSettlement();
+      
+      // Update stats after settlement
+      await this.updateScoreAfterDeath(score);
+      console.log('Death settled on blockchain');
+      
+      // Now show death screen with respawn option
+      this.ui.hideLoading();
+      this.ui.showDeathScreen(score);
     });
 
     this.ui.onStake(async () => {
@@ -306,6 +313,40 @@ class GameClient {
     });
   }
 
+  private async waitForDeathSettlement(): Promise<void> {
+    if (!this.wallet || !this.walletAddress || !STAKE_ARENA_ADDRESS) {
+      // No blockchain, just wait a bit
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return;
+    }
+
+    console.log('Waiting for death to settle on blockchain...');
+    
+    // Poll until player is no longer active (max 15 seconds)
+    const maxAttempts = 30; // 30 * 500ms = 15 seconds
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const isActive = await this.wallet.isActive(CURRENT_MATCH_ID, this.walletAddress);
+        
+        if (!isActive) {
+          console.log(`Death settled after ${(attempts * 500) / 1000}s`);
+          return;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      } catch (error) {
+        console.error('Error checking active status:', error);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+    }
+    
+    console.warn('Death settlement timeout - proceeding anyway');
+  }
+
   private async handleTapOut(): Promise<void> {
     if (!this.wallet || !this.walletAddress) {
       console.log('Cannot tap out: wallet not connected');
@@ -373,12 +414,10 @@ class GameClient {
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
         
-        // Update score after tap out (fetch fresh stake from blockchain)
-        const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
-        this.currentStake = parseFloat(stakeString);
+        // Reset tracking
+        this.currentStake = 0;
         this.lastPelletTokens = 0;
         this.lastSnakeLength = 0;
-        this.ui.updateCurrentScore(stakeString);
         
         // Return to home screen
         this.isSpectating = false;
