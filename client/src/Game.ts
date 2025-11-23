@@ -56,11 +56,19 @@ export class Game {
       this.currentState = message;
       this.lastUpdateTime = Date.now();
 
-      if (message.yourId && this.playerId !== message.yourId) {
+      // When server sends yourId, it means we have an active snake (or just joined/rejoined)
+      // Always process it, even if it's the same ID (handles respawn case)
+      if (message.yourId) {
+        const isNewOrChanged = this.playerId !== message.yourId;
         this.playerId = message.yourId;
-        console.log('Received player ID:', this.playerId);
         
-        // Notify that player ID was received
+        if (isNewOrChanged) {
+          console.log('Received player ID:', this.playerId);
+        } else {
+          console.log('Received player ID (rejoined with same ID):', this.playerId);
+        }
+        
+        // Always notify when server sends yourId (handles respawn/rejoin)
         if (this.onPlayerIdReceivedCallback) {
           this.onPlayerIdReceivedCallback(this.playerId);
         }

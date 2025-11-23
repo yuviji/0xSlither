@@ -40,9 +40,6 @@ export class GameServer {
   // Atomic operation queues - processed at start of each tick
   private pendingAdds: PendingSnakeAdd[] = [];
   private pendingRemoves: string[] = [];
-  
-  // Debug logging
-  private debugInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     // Pellet manager will be initialized after entropy is available
@@ -126,11 +123,6 @@ export class GameServer {
         onTickComplete();
       }
     }, TICK_INTERVAL);
-    
-    // Debug: Print snake coordinates every second
-    this.debugInterval = setInterval(() => {
-      this.logSnakePositions();
-    }, 1000);
   }
 
   stop(): void {
@@ -138,38 +130,6 @@ export class GameServer {
       clearInterval(this.gameLoop);
       this.gameLoop = null;
     }
-    if (this.debugInterval) {
-      clearInterval(this.debugInterval);
-      this.debugInterval = null;
-    }
-  }
-  
-  private logSnakePositions(): void {
-    console.log('\n=== SNAKE POSITIONS ===');
-    console.log(`Total snakes in game: ${this.snakes.size}`);
-    console.log(`Pending additions: ${this.pendingAdds.length}`);
-    console.log(`Pending removals: ${this.pendingRemoves.length}`);
-    
-    for (const [id, snake] of this.snakes.entries()) {
-      const pos = snake.headPosition;
-      const status = snake.alive ? '✅ ALIVE' : '💀 DEAD';
-      console.log(`  ${id} (${snake.name}): ${status} at (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}) - ${snake.segments.length} segments`);
-    }
-    
-    if (this.pendingAdds.length > 0) {
-      console.log('Pending adds:');
-      for (const add of this.pendingAdds) {
-        console.log(`  ${add.id} (${add.snake.name})`);
-      }
-    }
-    
-    if (this.pendingRemoves.length > 0) {
-      console.log('Pending removes:');
-      for (const id of this.pendingRemoves) {
-        console.log(`  ${id}`);
-      }
-    }
-    console.log('======================\n');
   }
 
   /**
