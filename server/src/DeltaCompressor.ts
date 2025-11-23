@@ -105,6 +105,9 @@ export class DeltaCompressor {
       matchId: currentState.matchId,
       entropyPending: currentState.entropyPending,
       useFairRNG: currentState.useFairRNG,
+      entropySeed: currentState.entropySeed,
+      entropyRequestId: currentState.entropyRequestId,
+      mapType: currentState.mapType,
     };
   }
 

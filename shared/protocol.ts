@@ -67,7 +67,10 @@ export interface DeltaStateMessage {
   yourId?: string; // Only sent to new players
   matchId?: string;
   entropyPending?: boolean;
+  entropyRequestId?: string; // Pyth Entropy request ID (sequence number)
   useFairRNG?: boolean;
+  mapType?: 'uniform' | 'clustered' | 'ring'; // Map generation type
+  entropySeed?: string; // The actual entropy seed from Pyth (for display/verification)
 }
 
 export interface DeadMessage {
