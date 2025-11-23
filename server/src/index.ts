@@ -218,19 +218,13 @@ class WebSocketGameServer {
         
         try {
           // Now safely do blockchain operations - snake can't be eaten anymore
-          const isActive = await this.blockchain.isActive(this.matchId, snake.address);
+          console.log(`Player ${player.id} (${snake.address}) disconnected - reporting to blockchain`);
+          await this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore);
           
-          if (isActive && this.blockchain && snake.address) {
-            console.log(`Player ${player.id} (${snake.address}) has active stake - transferring to server`);
-            await this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore);
-            
-            // Settle pellet tokens on disconnect
-            await this.blockchain.settlePelletTokens(snake.address, pelletTokens);
-          } else {
-            console.log(`Player ${player.id} (${snake.address}) not active in match, skipping disconnect report`);
-          }
+          // Settle pellet tokens on disconnect
+          await this.blockchain.settlePelletTokens(snake.address, pelletTokens);
         } catch (err) {
-          console.error('Error checking active status or reporting disconnect:', err);
+          console.error('Error reporting disconnect:', err);
         }
       }
       

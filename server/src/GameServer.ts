@@ -277,17 +277,9 @@ export class GameServer {
           // Self-collision or no killer - report self death to blockchain
           console.log(`${victim.name} died from self-collision with score ${victimScore}`);
           if (this.blockchain && this.matchId && victim.address) {
-            // Check if player is active before reporting self death
-            this.blockchain.isActive(this.matchId, victim.address)
-              .then(isActive => {
-                if (isActive && this.blockchain) {
-                  console.log(`Reporting self-collision death for ${victim.address} to blockchain`);
-                  return this.blockchain.reportSelfDeath(this.matchId as string, victim.address as string, victimScore);
-                } else {
-                  console.log(`Player ${victim.address} not active in match, skipping self-death report`);
-                }
-              })
-              .catch(err => console.error('Error checking active status or reporting self death:', err));
+            console.log(`Reporting self-collision death for ${victim.address} to blockchain`);
+            this.blockchain.reportSelfDeath(this.matchId, victim.address, victimScore)
+              .catch(err => console.error('Error reporting self death:', err));
           }
         }
       }
@@ -302,17 +294,9 @@ export class GameServer {
         
         // Report wall collision death to blockchain
         if (this.blockchain && this.matchId && snake.address) {
-          // Check if player is active before reporting self death
-          this.blockchain.isActive(this.matchId, snake.address)
-            .then(isActive => {
-              if (isActive && this.blockchain && snake.address) {
-                console.log(`Reporting wall collision death for ${snake.address} to blockchain`);
-                return this.blockchain.reportSelfDeath(this.matchId as string, snake.address as string, snakeScore);
-              } else {
-                console.log(`Player ${snake.address} not active in match, skipping wall-death report`);
-              }
-            })
-            .catch(err => console.error('Error checking active status or reporting wall death:', err));
+          console.log(`Reporting wall collision death for ${snake.address} to blockchain`);
+          this.blockchain.reportSelfDeath(this.matchId, snake.address, snakeScore)
+            .catch(err => console.error('Error reporting wall death:', err));
         }
       }
     }

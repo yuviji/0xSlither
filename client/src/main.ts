@@ -324,7 +324,7 @@ class GameClient {
     console.log(`Checking match: ${CURRENT_MATCH_ID}, address: ${this.walletAddress}`);
     
     // Poll until player is no longer active (max 20 seconds)
-    const maxAttempts = 40; // 40 * 500ms = 20 seconds
+    const maxAttempts = 20; // 40 * 500ms = 20 seconds
     let attempts = 0;
     
     while (attempts < maxAttempts) {
