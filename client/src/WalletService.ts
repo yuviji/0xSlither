@@ -273,6 +273,16 @@ export class WalletService {
     return true;
   }
 
+  async isActive(matchId: string, playerAddress: string): Promise<boolean> {
+    if (!this.stakeArena) {
+      throw new Error('StakeArena not initialized');
+    }
+
+    // Convert string match ID to bytes32
+    const matchIdBytes32 = ethers.id(matchId);
+    return await this.stakeArena.isActive(matchIdBytes32, playerAddress);
+  }
+
   async getOnChainLeaderboard(): Promise<Array<{ address: string; score: number }>> {
     if (!this.stakeArena) {
       console.warn('StakeArena not initialized');

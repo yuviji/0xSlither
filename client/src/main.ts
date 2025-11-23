@@ -89,6 +89,10 @@ class GameClient {
         this.ui.hideStartScreen();
         this.ui.hideDeathScreen();
         
+        // Show tap out button during gameplay
+        this.ui.showGameControls();
+        this.ui.setTapOutEnabled(true);
+        
         // Initialize stake value from blockchain once when gameplay starts
         if (STAKE_ARENA_ADDRESS) {
           this.initializeScore();
@@ -338,6 +342,24 @@ class GameClient {
     if (!this.wallet || !this.walletAddress) return;
 
     try {
+      this.ui.showLoading('Checking match status...');
+      
+      // Check if player is still active in the match before attempting tap out
+      const isActive = await this.wallet.isActive(CURRENT_MATCH_ID, this.walletAddress);
+      
+      if (!isActive) {
+        // Player is no longer active (already died/disconnected and stake was settled)
+        console.log('Player is no longer active in match - stake already settled by server');
+        this.ui.hideLoading();
+        
+        // Just return to home screen without attempting tapOut transaction
+        this.isSpectating = false;
+        this.ui.resetStakeState();
+        this.ui.showStartScreen();
+        this.ui.showError('You are no longer active in the match. Your stake was already settled.', 5000);
+        return;
+      }
+      
       this.ui.showLoading('Sign transaction to withdraw your stake and record your score...');
       
       // Call contract to withdraw with score
