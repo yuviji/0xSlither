@@ -28,7 +28,7 @@ export class GameServer {
   private lastTickTime = Date.now();
   private gameLoop: NodeJS.Timeout | null = null;
   private blockchain: BlockchainService | null = null;
-  private permanentMatchId: string = 'permanent-match-v1'; // Static match ID for continuous gameplay
+  private permanentMatchId: string = `permanent-match-${Date.now()}`; // Unique match ID per server restart
   private entropyBridge: EntropyBridgeService | null = null;
   private matchRNG: DeterministicRNG | null = null;
   private entropyRequestId: string | null = null;
