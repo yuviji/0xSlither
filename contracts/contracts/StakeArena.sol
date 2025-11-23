@@ -41,7 +41,14 @@ contract StakeArena is Ownable, ReentrancyGuard {
     uint256 public constant MAX_LEADERBOARD_SIZE = 10;
 
     // Events
+    event DepositedToVault(address indexed player, uint256 amount, uint256 timestamp);
     event Entered(bytes32 indexed matchId, address indexed player, uint256 amount);
+    event EatReported(
+        bytes32 indexed matchId,
+        address indexed eater,
+        address indexed eaten,
+        uint256 timestamp
+    );
     event EatLoot(
         bytes32 indexed matchId,
         address indexed eater,
@@ -50,6 +57,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
         uint256 timestamp
     );
     event TappedOut(bytes32 indexed matchId, address indexed player, uint256 amountWithdrawn);
+    event SelfDeathReported(bytes32 indexed matchId, address indexed player, uint256 score, uint256 timestamp);
     event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp);
     event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId);
     event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp);
@@ -67,8 +75,23 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Player deposits native SSS to server vault for continuous gameplay
+     * This replaces the per-match enterMatch flow for continuous matches
+     */
+    function depositToVault() external payable nonReentrant {
+        require(msg.value > 0, "Amount must be > 0");
+        
+        // Transfer directly to server wallet (vault)
+        (bool success, ) = payable(authorizedServer).call{value: msg.value}("");
+        require(success, "Transfer to vault failed");
+        
+        emit DepositedToVault(msg.sender, msg.value, block.timestamp);
+    }
+
+    /**
      * @dev Player stakes native SSS to enter a match
      * @param matchId Unique match identifier
+     * @notice DEPRECATED: Use depositToVault() for continuous matches
      */
     function enterMatch(bytes32 matchId) external payable nonReentrant {
         require(msg.value > 0, "Amount must be > 0");
@@ -88,12 +111,28 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Server reports that one player ate another
+     * @dev Server reports that one player ate another (stats/leaderboard only)
+     * In continuous vault mode, stake transfers happen off-chain via server wallet
      * @param matchId Match identifier
      * @param eater Address of the player who ate
      * @param eaten Address of the player who was eaten
      */
     function reportEat(
+        bytes32 matchId,
+        address eater,
+        address eaten
+    ) external onlyAuthorizedServer {
+        require(eater != eaten, "Cannot eat self");
+        
+        // Just emit event for tracking - no on-chain transfers in vault mode
+        emit EatReported(matchId, eater, eaten, block.timestamp);
+    }
+
+    /**
+     * @dev Legacy function for match-based gameplay with on-chain stake transfers
+     * @notice DEPRECATED: Use reportEat() for continuous matches (vault mode)
+     */
+    function reportEatWithTransfer(
         bytes32 matchId,
         address eater,
         address eaten
@@ -115,12 +154,32 @@ contract StakeArena is Ownable, ReentrancyGuard {
 
     /**
      * @dev Server reports that a player died from self-inflicted causes
-     * (eating self, wall collision, etc.) - stake goes to server
+     * (eating self, wall collision, disconnect, etc.) - updates leaderboard only
+     * In continuous vault mode, stakes are already in server wallet
      * @param matchId Match identifier
      * @param player Address of the player who died
      * @param score Player's final score in the match
      */
     function reportSelfDeath(
+        bytes32 matchId,
+        address player,
+        uint256 score
+    ) external onlyAuthorizedServer {
+        // Update best score if this score is higher
+        if (score > bestScore[player]) {
+            bestScore[player] = score;
+            _updateLeaderboard(player, score);
+            emit BestScoreUpdated(player, score);
+        }
+
+        emit SelfDeathReported(matchId, player, score, block.timestamp);
+    }
+
+    /**
+     * @dev Legacy function for match-based gameplay with on-chain stake transfers
+     * @notice DEPRECATED: Use reportSelfDeath() for continuous matches (vault mode)
+     */
+    function reportSelfDeathWithTransfer(
         bytes32 matchId,
         address player,
         uint256 score
@@ -152,6 +211,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
      * @dev Player voluntarily exits match and withdraws stake
      * @param matchId Match identifier
      * @param score Player's final score in the match
+     * @notice DEPRECATED: In vault mode, server handles payouts via direct transfers
      */
     function tapOut(bytes32 matchId, uint256 score) external nonReentrant {
         require(activeInMatch[matchId][msg.sender], "Not active in match");
@@ -179,7 +239,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
 
     /**
      * @dev Server commits entropy seed for match (Pyth integration)
-     * @param matchId Match identifier
+     * @param matchId Match identifier (can be permanent ID for continuous matches)
      * @param entropyRequestId Entropy request identifier from Base Sepolia
      * @param seedHash keccak256 hash of the actual seed for verification
      */
@@ -187,10 +247,10 @@ contract StakeArena is Ownable, ReentrancyGuard {
         external 
         onlyAuthorizedServer 
     {
-        require(matches[matchId].startTime > 0, "Match not started");
-        require(!matches[matchId].finalized, "Match finalized");
-        require(entropySeedByMatch[matchId] == bytes32(0), "Entropy already committed");
         require(seedHash != bytes32(0), "Invalid seed hash");
+        
+        // Allow re-committing entropy for continuous matches (e.g., on server restart)
+        // In continuous mode, we may update entropy periodically
         
         matchEntropyCommit[matchId] = entropyRequestId;
         entropySeedByMatch[matchId] = seedHash;
