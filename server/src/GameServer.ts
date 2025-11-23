@@ -16,6 +16,11 @@ import {
   PELLET_COUNT,
 } from '@0xslither/shared';
 
+interface PendingSnakeAdd {
+  id: string;
+  snake: SnakeEntity;
+}
+
 export class GameServer {
   private snakes: Map<string, SnakeEntity> = new Map();
   private pelletManager: PelletManager;
@@ -31,6 +36,10 @@ export class GameServer {
   private devFallbackMode: boolean = false;
   private entropySeed: string | null = null;
   private consumedPelletsThisTick: Set<string> = new Set();
+  
+  // Atomic operation queues - processed at start of each tick
+  private pendingAdds: PendingSnakeAdd[] = [];
+  private pendingRemoves: string[] = [];
 
   constructor() {
     // Pellet manager will be initialized after entropy is available
@@ -123,11 +132,71 @@ export class GameServer {
     }
   }
 
+  /**
+   * Process pending add/remove operations atomically at the start of each tick
+   * This prevents race conditions from snakes being added/removed mid-tick
+   */
+  private processPendingOperations(): void {
+    // Process removals first
+    for (const snakeId of this.pendingRemoves) {
+      this.snakes.delete(snakeId);
+      console.log(`Snake ${snakeId} removed (queued operation)`);
+    }
+    this.pendingRemoves = [];
+
+    // Then process additions - use the already-created snake instances
+    for (const addOp of this.pendingAdds) {
+      this.snakes.set(addOp.id, addOp.snake);
+      console.log(`Snake ${addOp.snake.name} (${addOp.id}) added to game (queued operation)`);
+    }
+    this.pendingAdds = [];
+  }
+
+  /**
+   * Internal method to create a snake immediately (called during tick processing)
+   */
+  private createSnakeImmediate(id: string, name: string, address?: string): SnakeEntity {
+    let x: number, y: number, color: string;
+    
+    if (this.matchRNG && address) {
+      // Deterministic mode: use entropy-derived spawn and color
+      const existingPositions = Array.from(this.snakes.values())
+        .filter(s => s.alive)
+        .map(s => ({ x: s.headPosition.x, y: s.headPosition.y }));
+      
+      const position = this.matchRNG.getSpawnPositionWithRetry(address, existingPositions, 10);
+      x = position.x;
+      y = position.y;
+      color = this.matchRNG.getSnakeColor(address);
+      
+      console.log(`✅ Deterministic spawn for ${address.slice(0, 8)}... at (${x.toFixed(0)}, ${y.toFixed(0)})`);
+    } else {
+      // Fallback mode: random spawn
+      const margin = 500;
+      x = margin + Math.random() * (WORLD_WIDTH - 2 * margin);
+      y = margin + Math.random() * (WORLD_HEIGHT - 2 * margin);
+      
+      // Generate color based on player ID or address
+      const seedString = address || id;
+      const hue = parseInt(seedString.slice(-6), 36) % 360;
+      color = `hsl(${hue}, 70%, 60%)`;
+      
+      if (this.devFallbackMode) {
+        console.warn(`⚠️  Fallback spawn for ${name} at (${x.toFixed(0)}, ${y.toFixed(0)}) - not deterministic`);
+      }
+    }
+    
+    return new SnakeEntity(id, name, x, y, color, address);
+  }
+
   private tick(): void {
     const now = Date.now();
     const deltaTime = (now - this.lastTickTime) / 1000; // Convert to seconds
     this.lastTickTime = now;
     this.tickCount++;
+
+    // Process pending operations atomically at the start of tick
+    this.processPendingOperations();
 
     // Clear consumed pellets tracking for this tick
     this.consumedPelletsThisTick.clear();
@@ -232,55 +301,34 @@ export class GameServer {
   }
 
   addSnake(id: string, name: string, address?: string): SnakeEntity {
-    let x: number, y: number, color: string;
+    // Create the snake immediately so we can return it
+    const snake = this.createSnakeImmediate(id, name, address);
     
-    if (this.matchRNG && address) {
-      // Deterministic mode: use entropy-derived spawn and color
-      const existingPositions = Array.from(this.snakes.values())
-        .filter(s => s.alive)
-        .map(s => ({ x: s.headPosition.x, y: s.headPosition.y }));
-      
-      const position = this.matchRNG.getSpawnPositionWithRetry(address, existingPositions, 10);
-      x = position.x;
-      y = position.y;
-      color = this.matchRNG.getSnakeColor(address);
-      
-      console.log(`✅ Deterministic spawn for ${address.slice(0, 8)}... at (${x.toFixed(0)}, ${y.toFixed(0)})`);
-    } else {
-      // Fallback mode: random spawn
-      const margin = 500;
-      x = margin + Math.random() * (WORLD_WIDTH - 2 * margin);
-      y = margin + Math.random() * (WORLD_HEIGHT - 2 * margin);
-      
-      // Generate color based on player ID or address
-      const seedString = address || id;
-      const hue = parseInt(seedString.slice(-6), 36) % 360;
-      color = `hsl(${hue}, 70%, 60%)`;
-      
-      if (this.devFallbackMode) {
-        console.warn(`⚠️  Fallback spawn for ${name} at (${x.toFixed(0)}, ${y.toFixed(0)}) - not deterministic`);
-      }
-    }
+    // Queue it for addition to the game on next tick
+    // This prevents the snake from being in play mid-tick
+    this.pendingAdds.push({ id, snake });
     
-    const snake = new SnakeEntity(id, name, x, y, color, address);
-    this.snakes.set(id, snake);
-    
-    const addressLog = address ? ` wallet: ${address}` : '';
-    console.log(`Snake ${name} (${id})${addressLog} spawned at (${x.toFixed(0)}, ${y.toFixed(0)}) color: ${color}`);
+    console.log(`Snake ${name} (${id}) created and queued for addition on next tick`);
     
     return snake;
   }
 
   removeSnake(id: string): void {
-    this.snakes.delete(id);
-    console.log(`Snake ${id} removed`);
+    // Queue the remove operation for next tick processing
+    if (!this.pendingRemoves.includes(id)) {
+      this.pendingRemoves.push(id);
+      console.log(`Snake ${id} queued for removal on next tick`);
+    }
   }
 
   removeSnakeByAddress(address: string): void {
+    // Find snake with this address and queue it for removal
     for (const [id, snake] of this.snakes.entries()) {
       if (snake.address === address) {
-        this.snakes.delete(id);
-        console.log(`Snake ${id} with address ${address} removed (duplicate login cleanup)`);
+        if (!this.pendingRemoves.includes(id)) {
+          this.pendingRemoves.push(id);
+          console.log(`Snake ${id} with address ${address} queued for removal (duplicate login cleanup)`);
+        }
         return;
       }
     }
