@@ -4,14 +4,21 @@ A real-time multiplayer snake game with a complete on-chain economy powered by b
 
 **Built for ETHGlobal Buenos Aires 2025** 🇦🇷
 
-[![Play Now](https://img.shields.io/badge/Play-Now-success?style=for-the-badge)]()
+[![Play Now](https://img.shields.io/badge/🎮_Play_Now-0xslither.vercel.app-success?style=for-the-badge)](https://0xslither.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+**🔴 LIVE NOW**: [https://0xslither.vercel.app](https://0xslither.vercel.app)
 
 ---
 
 ## 🌟 What is 0xSlither?
 
 0xSlither is a multiplayer snake game where players stake tokens to enter matches and winners collect the stakes of players they eliminate. Every match uses cryptographically verifiable randomness for fair spawn positions and pellet placement. All game results, stakes, and leaderboards are stored permanently on-chain.
+
+**🚀 Fully Deployed & Production Ready**
+- **Frontend**: Hosted on Vercel
+- **Game Server**: Hosted on Fluence CPU (decentralized compute)
+- **Smart Contracts**: Deployed on Saga Chainlet & Base Sepolia
 
 ### 🎯 Core Features
 
@@ -42,9 +49,23 @@ A real-time multiplayer snake game with a complete on-chain economy powered by b
 
 ## 🚀 Quick Start
 
-### Play Without Blockchain (Fastest Way)
+### 🎮 Play Online Now
 
-Get started in 30 seconds:
+**Visit [0xslither.vercel.app](https://0xslither.vercel.app)** and start playing immediately!
+
+1. Open [https://0xslither.vercel.app](https://0xslither.vercel.app)
+2. Connect your MetaMask wallet (optional)
+3. Enter your name
+4. Stake SSS tokens or play for free
+5. Start eating and growing!
+
+> **Server**: Running on Fluence CPU (decentralized compute platform)  
+> **Frontend**: Hosted on Vercel  
+> **Blockchain**: Saga Chainlet + Base Sepolia
+
+### 🔧 Run Locally (For Development)
+
+Want to modify the code or run your own instance?
 
 ```bash
 # Install dependencies
@@ -54,13 +75,7 @@ pnpm install
 pnpm run dev
 ```
 
-Open http://localhost:3000, enter your name, and start playing!
-
-> **Note**: This mode runs the game without blockchain features. No wallet or tokens needed.
-
-### Play With Full Blockchain Features
-
-To enable staking, on-chain leaderboards, and provably fair randomness, see the [Full Blockchain Setup](#-blockchain-setup) section below.
+Open http://localhost:3000 to play your local version.
 
 ---
 
@@ -108,9 +123,11 @@ Open http://localhost:3000 in your browser.
 
 ## 🎮 How to Play
 
-1. **Connect Wallet** (optional - only for blockchain features)
+**Live Game**: [0xslither.vercel.app](https://0xslither.vercel.app)
+
+1. **Connect Wallet** (optional - only for staking features)
 2. **Enter Your Name**
-3. **Stake Tokens** (if blockchain enabled) or click "Play"
+3. **Stake SSS Tokens** or click "Play" to play for free
 4. **Move Mouse** to control your snake's direction
 5. **Eat Pellets** to grow bigger
 6. **Avoid Other Snakes** - hitting their body kills you!
@@ -119,9 +136,30 @@ Open http://localhost:3000 in your browser.
 
 ---
 
-## ⛓️ Blockchain Setup
+## 🌐 Production Deployment
 
-### Architecture Overview
+0xSlither is fully deployed and running in production:
+
+| Component | Platform | URL/Details |
+|-----------|----------|-------------|
+| **Frontend** | Vercel | [0xslither.vercel.app](https://0xslither.vercel.app) |
+| **Game Server** | Fluence CPU | Decentralized compute platform |
+| **Smart Contracts** | Saga Chainlet | [View on Explorer](https://slither-2763767854157000-1.sagaexplorer.io/txs) |
+| **Randomness Oracle** | Base Sepolia | [View Contract](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492) |
+
+### Why Fluence CPU?
+
+Fluence CPU provides decentralized compute infrastructure, ensuring:
+- ✅ No single point of failure
+- ✅ Censorship resistance
+- ✅ Transparent execution
+- ✅ Perfect fit for Web3 gaming
+
+---
+
+## ⛓️ Blockchain Architecture
+
+### Multi-Chain Setup
 
 0xSlither uses a dual-chain architecture:
 
@@ -249,34 +287,34 @@ Now when you play:
 ┌──────────────────────────────────────────────────┐
 │  1. Server requests entropy from Base Sepolia    │
 └────────────────┬─────────────────────────────────┘
-                 │
-                 ▼
-    ┌────────────────────────────┐
+                     │
+                     ▼
+        ┌────────────────────────────┐
     │  2. Pyth Oracle reveals    │
     │     random seed            │
     │     (10-30 sec delay)      │
-    └────────────┬───────────────┘
-                 │
-                 ▼
-    ┌────────────────────────────┐
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
     │  3. Server reads seed from │
     │     EntropyOracle (Base)   │
-    └────────────┬───────────────┘
-                 │
-                 ▼
-    ┌────────────────────────────┐
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
     │  4. Server commits hash to │
     │     StakeArena (Saga)      │
-    └────────────┬───────────────┘
-                 │
-                 ▼
-    ┌────────────────────────────┐
+        └────────────┬───────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
     │  5. Generate using RNG:    │
     │     • Spawn positions      │
     │     • Snake colors         │
     │     • Pellet layout        │
     │     • Map type             │
-    └────────────────────────────┘
+        └────────────────────────────┘
 ```
 
 ### What Gets Randomized
@@ -365,7 +403,9 @@ pnpm run preview
 
 ### Test Multiplayer
 
-Open multiple browser tabs to http://localhost:3000 - each tab is a separate player!
+Open multiple browser tabs to [0xslither.vercel.app](https://0xslither.vercel.app) - each tab is a separate player!
+
+For local testing, use http://localhost:3000 instead.
 
 ### Configuration
 
@@ -393,11 +433,13 @@ PORT=9000 pnpm run server
 ### Frontend
 - **TypeScript** - Type-safe development
 - **Vite** - Fast build tool
+- **Vercel** - Production hosting
 - **Canvas 2D** - High-performance rendering
 - **ethers.js v6** - Blockchain interactions
 
 ### Backend
 - **Node.js** - Server runtime
+- **Fluence CPU** - Decentralized compute hosting
 - **ws** - WebSocket library
 - **ethers.js v6** - Blockchain interactions
 
@@ -421,9 +463,10 @@ PORT=9000 pnpm run server
 - [x] Deterministic match replay
 - [x] Leaderboard system
 - [x] Smooth camera and interpolation
+- [x] **Production deployment on Vercel**
+- [x] **Decentralized server on Fluence CPU**
 
 ### 🚧 Future Enhancements
-- [ ] Oasis ROFL deployment
 - [ ] Mobile touch controls
 - [ ] Audio and sound effects
 - [ ] Multiple game rooms
@@ -535,8 +578,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **ETHGlobal** - For the hackathon opportunity
-- **Saga** - For the dedicated chainlet
+- **Saga** - For the dedicated chainlet infrastructure
+- **Fluence** - For decentralized compute hosting
 - **Pyth Network** - For Entropy randomness oracle
+- **Vercel** - For frontend hosting
 - **OpenZeppelin** - For secure contract libraries
 - **Slither.io** - Original game inspiration
 
@@ -544,6 +589,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support & Links
 
+- **🎮 Play Game**: [0xslither.vercel.app](https://0xslither.vercel.app)
 - **Issues**: [GitHub Issues](https://github.com/yourusername/0xSlither/issues)
 - **Saga Explorer**: [View Transactions](https://slither-2763767854157000-1.sagaexplorer.io/txs)
 - **Base Sepolia Explorer**: [View Entropy Contract](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492)
@@ -552,8 +598,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Built with ❤️ using TypeScript, Node.js, and Blockchain**
+**Built with ❤️ using TypeScript, Fluence CPU, and Blockchain**
 
-**[Play Now](http://localhost:3000)** | **[Report Bug](https://github.com/yourusername/0xSlither/issues)** | **[Request Feature](https://github.com/yourusername/0xSlither/issues)**
+**Deployed on Vercel | Server on Fluence CPU | Contracts on Saga & Base**
+
+**[🎮 Play Now](https://0xslither.vercel.app)** | **[Report Bug](https://github.com/yourusername/0xSlither/issues)** | **[Request Feature](https://github.com/yourusername/0xSlither/issues)**
 
 </div>
