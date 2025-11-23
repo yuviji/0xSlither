@@ -156,7 +156,14 @@ export class UI {
     this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
     this.walletStatus.className = 'success';
     this.stakeSection.classList.remove('hidden');
+    // Don't enable stake button yet - wait for match ID from server
+    this.stakeButton.disabled = true;
+    this.stakeButton.textContent = 'Waiting for match...';
+  }
+
+  enableStakeButton(): void {
     this.stakeButton.disabled = false;
+    this.stakeButton.textContent = 'Stake 1 SSS';
   }
 
   updateWalletAddress(address: string): void {

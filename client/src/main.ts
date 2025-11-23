@@ -12,7 +12,7 @@ const WSS_URL = import.meta.env.VITE_WSS_URL;
 const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
 
 // Match ID (will be provided by server)
-let CURRENT_MATCH_ID = `match-${Date.now()}`;
+let CURRENT_MATCH_ID: string | null = null; // Start as null, wait for server
 
 class GameClient {
   private game: Game;
@@ -31,6 +31,7 @@ class GameClient {
   private currentStake: number = 0; // Cached stake value (fetched from blockchain)
   private lastPelletTokens: number = 0; // Track last known pellet tokens for change detection
   private lastSnakeLength: number = 0; // Track snake length to detect when we eat another snake
+  private matchIdReceived = false; // Track if we've received match ID from server
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -69,10 +70,20 @@ class GameClient {
     this.game.onStateUpdate((state) => {
       this.ui.updateLeaderboard(state);
       this.ui.renderEntropyInfo(state);
-      // Update match ID from server if provided (only once)
-      if (state.matchId && state.matchId !== CURRENT_MATCH_ID) {
+      
+      // CRITICAL: Update match ID from server (only once)
+      // This must happen BEFORE any staking to ensure players stake into the correct match
+      if (state.matchId && !this.matchIdReceived) {
         CURRENT_MATCH_ID = state.matchId;
-        console.log('Match ID updated from server:', CURRENT_MATCH_ID);
+        this.matchIdReceived = true;
+        console.log('✅ Match ID received from server:', CURRENT_MATCH_ID);
+        
+        // Now that we have the match ID, we can safely enable staking
+        // (if wallet is already connected)
+        if (this.walletAddress && STAKE_ARENA_ADDRESS) {
+          this.ui.enableStakeButton();
+          console.log('Stake button enabled - ready to enter match');
+        }
       }
       
       // Event-based score update: only update when pellet tokens change
@@ -231,18 +242,24 @@ class GameClient {
       return;
     }
 
+    // CRITICAL: Match ID must be received from server before staking
+    if (!CURRENT_MATCH_ID) {
+      alert('Waiting for match ID from server... Please try again in a moment.');
+      return;
+    }
+
     // If blockchain enabled, stake
     if (STAKE_ARENA_ADDRESS) {
       const stakeAmount = '1'; // Fixed stake amount
       
       try {
-        console.log(`Staking ${stakeAmount} SSS...`);
+        console.log(`Staking ${stakeAmount} SSS into match ${CURRENT_MATCH_ID}...`);
         this.ui.showLoading(`Staking ${stakeAmount} SSS... Please sign the transaction in MetaMask.`);
         
-        // Enter match
+        // Enter match with server's match ID
         await this.wallet!.enterMatch(CURRENT_MATCH_ID, stakeAmount);
 
-        console.log('✅ Successfully staked and entered match');
+        console.log('✅ Successfully staked and entered match:', CURRENT_MATCH_ID);
         this.ui.hideLoading();
         this.ui.setStaked();
         
@@ -314,8 +331,8 @@ class GameClient {
   }
 
   private async waitForDeathSettlement(): Promise<void> {
-    if (!this.wallet || !this.walletAddress || !STAKE_ARENA_ADDRESS) {
-      // No blockchain, just wait a bit
+    if (!this.wallet || !this.walletAddress || !STAKE_ARENA_ADDRESS || !CURRENT_MATCH_ID) {
+      // No blockchain or no match ID, just wait a bit
       await new Promise(resolve => setTimeout(resolve, 1000));
       return;
     }
@@ -356,8 +373,8 @@ class GameClient {
       return;
     }
 
-    if (!STAKE_ARENA_ADDRESS) {
-      console.log('Cannot tap out: blockchain not enabled');
+    if (!STAKE_ARENA_ADDRESS || !CURRENT_MATCH_ID) {
+      console.log('Cannot tap out: blockchain not enabled or match ID missing');
       return;
     }
 
@@ -383,7 +400,7 @@ class GameClient {
   }
 
   private async attemptTapOutTransaction(score: number): Promise<void> {
-    if (!this.wallet || !this.walletAddress) return;
+    if (!this.wallet || !this.walletAddress || !CURRENT_MATCH_ID) return;
 
     try {
       this.ui.showLoading('Checking match status...');
@@ -450,7 +467,7 @@ class GameClient {
    * Initialize score once when gameplay starts (fetches stake from blockchain)
    */
   private async initializeScore(): Promise<void> {
-    if (!this.wallet || !this.walletAddress) return;
+    if (!this.wallet || !this.walletAddress || !CURRENT_MATCH_ID) return;
 
     try {
       const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
@@ -509,7 +526,7 @@ class GameClient {
    * Refetch stake from blockchain (when eating another snake)
    */
   private async refetchStake(): Promise<void> {
-    if (!this.wallet || !this.walletAddress) return;
+    if (!this.wallet || !this.walletAddress || !CURRENT_MATCH_ID) return;
 
     try {
       const stakeString = await this.wallet.getCurrentStake(CURRENT_MATCH_ID);
@@ -531,7 +548,7 @@ class GameClient {
   }
 
   private async updateScoreAfterDeath(finalScore: number): Promise<void> {
-    if (!this.wallet || !this.walletAddress) return;
+    if (!this.wallet || !this.walletAddress || !CURRENT_MATCH_ID) return;
 
     try {
       const bestScoreFromChain = await this.wallet.getBestScore();
