@@ -47,17 +47,24 @@ class WebSocketGameServer {
 
       if (!privateKey || !stakeArenaAddress) {
         console.warn('⚠️  Blockchain integration disabled: Missing SERVER_PRIVATE_KEY or STAKE_ARENA_ADDRESS');
+        this.matchId = `match-${Date.now()}`;
+        process.env.MATCH_ID = this.matchId;
       } else {
         this.blockchain = new BlockchainService(rpcUrl, privateKey, stakeArenaAddress);
-        this.matchId = this.blockchain.generateMatchId(`match-${Date.now()}`);
+        // Use a fixed match ID string that gets hashed consistently
+        // This allows server restarts without creating new matches
+        const matchIdString = process.env.MATCH_ID || `match-${Date.now()}`;
+        this.matchId = matchIdString;
+        // Store match ID in process.env for access throughout the application
+        process.env.MATCH_ID = this.matchId;
         console.log('✅ Blockchain integration enabled (Native SSS)');
-        console.log(`📝 Match ID: ${this.matchId}`);
+        console.log(`📝 Match ID (string): ${this.matchId}`);
+        console.log(`📝 Match ID (bytes32): ${this.blockchain.generateMatchId(this.matchId)}`);
       }
     } catch (error) {
       console.error('Failed to initialize blockchain:', error);
+      this.matchId = `match-${Date.now()}`;
     }
-    
-    this.matchId = `match-${Date.now()}`;
     this.wss.on('connection', (ws: WebSocket) => this.handleConnection(ws));
     
     console.log(`WebSocket server listening on port ${port}`);
