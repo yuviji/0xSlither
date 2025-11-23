@@ -245,7 +245,15 @@ class GameClient {
       return;
     }
 
-    // Show loading state while waiting for server to assign player ID
+    // Show loading state while waiting for server connection and player ID
+    this.ui.showLoading('Connecting to game server...');
+    
+    // Wait for WebSocket connection before joining (prevent race condition)
+    if (!this.game.isConnected()) {
+      console.log('WebSocket not connected yet, waiting...');
+      await this.waitForConnection();
+    }
+    
     this.ui.showLoading('Joining game...');
     
     // Use wallet address as the player name
@@ -257,6 +265,26 @@ class GameClient {
     setTimeout(() => {
       this.ui.hideLoading();
     }, 1000);
+  }
+  
+  private async waitForConnection(): Promise<void> {
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (this.game.isConnected()) {
+          clearInterval(checkInterval);
+          console.log('WebSocket connected!');
+          resolve();
+        }
+      }, 100); // Check every 100ms
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.error('WebSocket connection timeout');
+        alert('Could not connect to game server. Please refresh and try again.');
+        resolve();
+      }, 10000);
+    });
   }
 
   private async handleTapOut(): Promise<void> {
