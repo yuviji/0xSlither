@@ -33,7 +33,6 @@ class WebSocketGameServer {
   private matchId: string;
   private players: Map<WebSocket, Player> = new Map();
   private nextPlayerId = 0;
-  private broadcastInterval: NodeJS.Timeout | null = null;
 
   constructor(port: number) {
     this.gameServer = new GameServer();
@@ -71,18 +70,17 @@ class WebSocketGameServer {
   }
 
   start(): void {
-    this.gameServer.start();
-    
     // Connect blockchain to game server if enabled
     if (this.blockchain) {
       this.gameServer.setBlockchainService(this.blockchain, this.matchId);
     }
     
-    // Broadcast game state at server tick rate
-    this.broadcastInterval = setInterval(() => {
+    // Start game server with synchronized broadcast callback
+    // Broadcasts happen immediately after each tick completes
+    this.gameServer.start(() => {
       this.broadcastGameState();
       this.checkDeadSnakes();
-    }, 50); // 20 times per second
+    });
   }
 
   private handleConnection(ws: WebSocket): void {

@@ -30,6 +30,7 @@ export class GameServer {
   private entropyPending: boolean = false;
   private devFallbackMode: boolean = false;
   private entropySeed: string | null = null;
+  private consumedPelletsThisTick: Set<string> = new Set();
 
   constructor() {
     // Pellet manager will be initialized after entropy is available
@@ -104,9 +105,15 @@ export class GameServer {
     }
   }
 
-  start(): void {
+  start(onTickComplete?: () => void): void {
     console.log('Game server started');
-    this.gameLoop = setInterval(() => this.tick(), TICK_INTERVAL);
+    this.gameLoop = setInterval(() => {
+      this.tick();
+      // Call callback after each tick to synchronize broadcasts
+      if (onTickComplete) {
+        onTickComplete();
+      }
+    }, TICK_INTERVAL);
   }
 
   stop(): void {
@@ -122,6 +129,9 @@ export class GameServer {
     this.lastTickTime = now;
     this.tickCount++;
 
+    // Clear consumed pellets tracking for this tick
+    this.consumedPelletsThisTick.clear();
+
     // Update all snakes
     for (const snake of this.snakes.values()) {
       if (snake.alive) {
@@ -134,7 +144,15 @@ export class GameServer {
       if (!snake.alive) continue;
 
       for (const pellet of this.pelletManager.getPellets()) {
+        // Skip if this pellet was already consumed this tick (race condition prevention)
+        if (this.consumedPelletsThisTick.has(pellet.id)) {
+          continue;
+        }
+        
         if (CollisionDetection.checkPelletCollision(snake, pellet)) {
+          // Mark pellet as consumed to prevent duplicate consumption
+          this.consumedPelletsThisTick.add(pellet.id);
+          
           // Growth is proportional to pellet size
           // Min size (4) gives 2 segments, max size (8) gives 4 segments
           const growthAmount = Math.round(pellet.size / 2);

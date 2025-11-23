@@ -374,6 +374,15 @@ export class UI {
       document.body.appendChild(entropyPanel);
     }
 
+    // Only show RNG info on the start screen, not during gameplay
+    const isStartScreenVisible = !this.startScreen.classList.contains('hidden');
+    
+    // Hide the panel if we're in-game (start screen is hidden)
+    if (!isStartScreenVisible) {
+      entropyPanel.style.display = 'none';
+      return;
+    }
+
     // Only show if we have game state and match ID
     if (!gameState || !gameState.matchId) {
       entropyPanel.style.display = 'none';
