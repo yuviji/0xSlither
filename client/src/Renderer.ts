@@ -252,9 +252,9 @@ export class Renderer {
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'bottom';
 
-    // Display name with address if available
+    // Display shortened address only
     const displayName = snake.address 
-      ? `${snake.name} (${this.shortenAddress(snake.address)})`
+      ? this.shortenAddress(snake.address)
       : snake.name;
 
     // Background
