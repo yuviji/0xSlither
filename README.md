@@ -21,6 +21,7 @@ A real-time multiplayer Slither.io-style game with a complete on-chain economy p
 - **Match Finalization**: Results stored on Saga Chainlet
 - **Best Score Tracking**: Forever preserved on-chain
 - **Entropy Commitment**: Placeholder for Pyth Entropy integration
+- **Auto Network Config**: Automatic MetaMask network setup (no manual configuration needed!) 🔥
 
 ## 🛠️ Tech Stack
 
@@ -163,10 +164,11 @@ cd client && pnpm run dev
 ### Access the Game
 
 1. Open your browser to `http://localhost:3000`
-2. Enter your name and click "Play"
-3. Use your mouse to control your snake
-4. Eat pellets to grow
-5. Avoid hitting other snakes!
+2. **Connect your wallet** - MetaMask will automatically be configured with the Saga Chainlet network! (See [NETWORK_SETUP_GUIDE.md](NETWORK_SETUP_GUIDE.md))
+3. Enter your name and stake SSS tokens
+4. Use your mouse to control your snake
+5. Eat pellets to grow and steal other players' stakes!
+6. Avoid hitting other snakes!
 
 ### Testing Multiplayer
 

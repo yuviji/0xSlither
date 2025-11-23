@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { NETWORK_CONFIG, getAddChainParameters, getSwitchChainParameters } from './networkConfig';
 
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
@@ -25,54 +26,132 @@ export class WalletService {
     try {
       // Check if MetaMask is installed
       if (!window.ethereum) {
-        console.error('MetaMask not detected');
-        return null;
+        console.error('❌ MetaMask not detected');
+        console.error('Please install MetaMask from https://metamask.io');
+        throw new Error('MetaMask not installed');
       }
 
+      console.log('🔐 Connecting to wallet...');
       this.provider = new ethers.BrowserProvider(window.ethereum);
       
       // Request account access
       const accounts = await this.provider.send('eth_requestAccounts', []);
       this.address = accounts[0];
+      console.log('✅ Account connected:', this.address);
       
       this.signer = await this.provider.getSigner();
       
-      // Check if we're on the right network
-      const network = await this.provider.getNetwork();
-      const sagaChainId = 2763767854157000n;
-      
-      if (network.chainId !== sagaChainId) {
-        console.log('Switching to Saga Chainlet...');
-        try {
-          await this.provider.send('wallet_switchEthereumChain', [
-            { chainId: `0x${sagaChainId.toString(16)}` }
-          ]);
-        } catch (switchError: any) {
-          // If chain not added, add it
-          if (switchError.code === 4902) {
-            await this.provider.send('wallet_addEthereumChain', [{
-              chainId: `0x${sagaChainId.toString(16)}`,
-              chainName: '0xSlither Saga Chainlet',
-              nativeCurrency: {
-                name: 'SSS',
-                symbol: 'SSS',
-                decimals: 18
-              },
-              rpcUrls: ['https://slither-2763767854157000-1.jsonrpc.sagarpc.io'],
-              blockExplorerUrls: ['https://slither-2763767854157000-1.sagaexplorer.io']
-            }]);
-          } else {
-            throw switchError;
-          }
-        }
-      }
+      // Ensure we're on the correct network
+      await this.ensureCorrectNetwork();
 
-      console.log('Wallet connected:', this.address);
-      console.log('Using native SSS token');
+      console.log('✅ Wallet fully connected and configured');
+      console.log(`📡 Network: ${NETWORK_CONFIG.chainName}`);
+      console.log(`💎 Using native ${NETWORK_CONFIG.nativeCurrency.symbol} token`);
       return this.address;
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to connect wallet:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 4001) {
+        console.error('User rejected the connection request');
+      } else if (error.code === -32002) {
+        console.error('Connection request already pending - please check your wallet');
+      }
+      
       return null;
+    }
+  }
+
+  /**
+   * Ensures the wallet is connected to the correct network
+   * Automatically switches or adds the network if needed
+   */
+  private async ensureCorrectNetwork(): Promise<void> {
+    if (!this.provider) {
+      throw new Error('Provider not initialized');
+    }
+
+    try {
+      // Check current network
+      const network = await this.provider.getNetwork();
+      console.log(`📡 Current network: Chain ID ${network.chainId}`);
+      
+      if (network.chainId !== NETWORK_CONFIG.chainId) {
+        console.log(`🔄 Wrong network detected. Switching to ${NETWORK_CONFIG.chainName}...`);
+        await this.switchToCorrectNetwork();
+      } else {
+        console.log(`✅ Already on ${NETWORK_CONFIG.chainName}`);
+      }
+    } catch (error) {
+      console.error('Error ensuring correct network:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Attempts to switch to the correct network
+   * If the network is not added to the wallet, it will be added automatically
+   */
+  private async switchToCorrectNetwork(): Promise<void> {
+    if (!this.provider) {
+      throw new Error('Provider not initialized');
+    }
+
+    try {
+      // Try to switch to the network
+      console.log(`🔄 Requesting network switch to ${NETWORK_CONFIG.chainName}...`);
+      await this.provider.send('wallet_switchEthereumChain', [
+        getSwitchChainParameters()
+      ]);
+      console.log(`✅ Successfully switched to ${NETWORK_CONFIG.chainName}`);
+    } catch (switchError: any) {
+      // Error code 4902 means the chain has not been added to MetaMask
+      if (switchError.code === 4902) {
+        console.log(`➕ Network not found in wallet. Adding ${NETWORK_CONFIG.chainName}...`);
+        await this.addNetworkToWallet();
+      } else if (switchError.code === 4001) {
+        // User rejected the request
+        console.error('❌ User rejected network switch request');
+        throw new Error('Network switch rejected by user');
+      } else {
+        console.error('❌ Failed to switch network:', switchError);
+        throw switchError;
+      }
+    }
+  }
+
+  /**
+   * Adds the network to the user's wallet
+   */
+  private async addNetworkToWallet(): Promise<void> {
+    if (!this.provider) {
+      throw new Error('Provider not initialized');
+    }
+
+    try {
+      console.log('➕ Adding network to wallet...');
+      console.log('Network details:', {
+        chainId: NETWORK_CONFIG.chainIdHex,
+        chainName: NETWORK_CONFIG.chainName,
+        rpcUrls: NETWORK_CONFIG.rpcUrls,
+        blockExplorerUrls: NETWORK_CONFIG.blockExplorerUrls,
+        nativeCurrency: NETWORK_CONFIG.nativeCurrency,
+      });
+
+      await this.provider.send('wallet_addEthereumChain', [
+        getAddChainParameters()
+      ]);
+      
+      console.log(`✅ Successfully added ${NETWORK_CONFIG.chainName} to wallet`);
+      console.log('🔄 Network should now be switched automatically');
+    } catch (addError: any) {
+      if (addError.code === 4001) {
+        console.error('❌ User rejected adding the network');
+        throw new Error('Adding network rejected by user');
+      } else {
+        console.error('❌ Failed to add network:', addError);
+        throw addError;
+      }
     }
   }
 
@@ -194,6 +273,74 @@ export class WalletService {
 
   isConnected(): boolean {
     return this.address !== null;
+  }
+
+  /**
+   * Set up listeners for wallet events (account changes, network changes, etc.)
+   * Call this after connecting the wallet
+   */
+  setupWalletListeners(onAccountChange?: (address: string | null) => void, onNetworkChange?: () => void): void {
+    if (!window.ethereum) return;
+
+    // Listen for account changes
+    window.ethereum.on('accountsChanged', (accounts: string[]) => {
+      console.log('🔄 Account changed');
+      if (accounts.length === 0) {
+        console.log('❌ Wallet disconnected');
+        this.address = null;
+        this.signer = null;
+        if (onAccountChange) onAccountChange(null);
+      } else {
+        console.log('✅ New account:', accounts[0]);
+        this.address = accounts[0];
+        if (onAccountChange) onAccountChange(accounts[0]);
+      }
+    });
+
+    // Listen for network changes
+    window.ethereum.on('chainChanged', async (chainId: string) => {
+      const chainIdBigInt = BigInt(chainId);
+      console.log('🔄 Network changed to chain ID:', chainIdBigInt);
+      
+      if (chainIdBigInt !== NETWORK_CONFIG.chainId) {
+        console.warn(`⚠️  You are no longer on ${NETWORK_CONFIG.chainName}`);
+        console.warn('Please switch back to continue playing');
+        if (onNetworkChange) onNetworkChange();
+      } else {
+        console.log(`✅ Back on ${NETWORK_CONFIG.chainName}`);
+      }
+      
+      // Reload the page on network change (recommended by MetaMask)
+      // window.location.reload();
+    });
+
+    console.log('👂 Wallet event listeners set up');
+  }
+
+  /**
+   * Get the current network information
+   */
+  async getCurrentNetwork(): Promise<{ chainId: bigint; name: string } | null> {
+    if (!this.provider) return null;
+
+    try {
+      const network = await this.provider.getNetwork();
+      return {
+        chainId: network.chainId,
+        name: network.name,
+      };
+    } catch (error) {
+      console.error('Error getting current network:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if the current network is correct
+   */
+  async isOnCorrectNetwork(): Promise<boolean> {
+    const network = await this.getCurrentNetwork();
+    return network ? network.chainId === NETWORK_CONFIG.chainId : false;
   }
 }
 

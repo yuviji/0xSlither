@@ -161,6 +161,20 @@ export class UI {
     this.stakeButton.disabled = false;
   }
 
+  updateWalletAddress(address: string): void {
+    this.walletStatus.textContent = `Connected: ${this.shortenAddress(address)}`;
+    this.walletStatus.className = 'success';
+  }
+
+  setWalletNotConnected(): void {
+    this.connectWalletButton.textContent = 'Connect Wallet';
+    this.connectWalletButton.disabled = false;
+    this.walletStatus.textContent = 'Not connected';
+    this.walletStatus.className = '';
+    this.stakeSection.classList.add('hidden');
+    this.playButton.classList.add('hidden');
+  }
+
   setStaked(): void {
     this.stakeButton.textContent = '✓ Staked';
     this.stakeButton.disabled = true;
@@ -257,6 +271,43 @@ export class UI {
     this.loadingMessage.textContent = message;
     this.retryButton.classList.remove('hidden');
     this.loadingOverlay.classList.remove('hidden');
+  }
+
+  showError(message: string, duration: number = 5000): void {
+    // Create or get error notification element
+    let errorNotification = document.getElementById('errorNotification');
+    
+    if (!errorNotification) {
+      errorNotification = document.createElement('div');
+      errorNotification.id = 'errorNotification';
+      errorNotification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 51, 102, 0.95);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        border: 2px solid rgba(255, 51, 102, 1);
+        box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
+        z-index: 10000;
+        max-width: 400px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 14px;
+        animation: slideIn 0.3s ease-out;
+      `;
+      document.body.appendChild(errorNotification);
+    }
+    
+    errorNotification.textContent = message;
+    errorNotification.style.display = 'block';
+    
+    // Auto-hide after duration
+    setTimeout(() => {
+      if (errorNotification) {
+        errorNotification.style.display = 'none';
+      }
+    }, duration);
   }
 
   onRetry(callback: () => void): void {

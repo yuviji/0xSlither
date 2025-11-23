@@ -155,6 +155,34 @@ class GameClient {
           console.log('✅ Wallet connected (blockchain features disabled)');
         }
         
+        // Set up wallet event listeners
+        this.wallet.setupWalletListeners(
+          // On account change
+          (newAddress) => {
+            if (newAddress) {
+              console.log('Account changed to:', newAddress);
+              this.walletAddress = newAddress;
+              this.ui.updateWalletAddress(newAddress);
+              // Update balance for new account
+              this.wallet?.getTokenBalance().then(balance => {
+                this.ui.updateTokenBalance(balance);
+              });
+            } else {
+              console.log('Wallet disconnected');
+              this.walletAddress = null;
+              this.ui.setWalletNotConnected();
+            }
+          },
+          // On network change
+          async () => {
+            console.warn('⚠️ Network changed! Checking if on correct network...');
+            const isCorrect = await this.wallet?.isOnCorrectNetwork();
+            if (!isCorrect) {
+              this.ui.showError('Wrong network! Please switch back to 0xSlither Saga Chainlet');
+            }
+          }
+        );
+        
         // Update balance
         const balance = await this.wallet.getTokenBalance();
         this.ui.updateTokenBalance(balance);
