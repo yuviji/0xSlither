@@ -9,7 +9,7 @@ A real-time multiplayer snake game with a complete on-chain economy powered by b
 
 **🔴 LIVE NOW**: [https://0xslither.vercel.app](https://0xslither.vercel.app)
 
-Before you do it make sure to get some SSS tokens from [https://sss-faucet.vercel.app](https://sss-faucet.vercel.app] and go to [https://94.103.168.84](https://94.103.168.84) to whitelist the WebSocket connection.
+Before you do it make sure to get some SSS tokens from [https://sss-faucet.vercel.app](https://sss-faucet.vercel.app) and go to [https://94.103.168.84](https://94.103.168.84) to whitelist the WebSocket connection.
 
 ---
 
