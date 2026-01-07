@@ -62,7 +62,11 @@ sudo rm -f /etc/nginx/sites-enabled/default
 
 # Test HTTP config
 sudo nginx -t
-sudo systemctl reload nginx
+
+# Start and enable Nginx
+echo "Starting Nginx..."
+sudo systemctl start nginx
+sudo systemctl enable nginx
 
 # Get SSL certificate (this will auto-add HTTPS config)
 echo ""
