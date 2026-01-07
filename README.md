@@ -2,7 +2,7 @@
 
 A real-time multiplayer snake game with a complete on-chain economy powered by blockchain technology.
 
-[![Play Now](https://img.shields.io/badge/🎮_Play_Now-0xslither.vercel.app-success?style=for-the-badge)](https://0xslither.vercel.app)
+[![Play Now](https://img.shields.io/badge/🎮_Play_Now-0xslither.yuvrajlakhotia.me-success?style=for-the-badge)](https://0xslither.yuvrajlakhotia.me)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 **🔴 LIVE NOW**: [https://0xslither.yuvrajlakhotia.me](https://0xslither.yuvrajlakhotia.me)

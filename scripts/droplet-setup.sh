@@ -107,7 +107,7 @@ module.exports = {
   apps: [{
     name: 'slither-server',
     cwd: '/opt/0xSlither/server',
-    script: 'dist/index.js',
+    script: 'dist/server/src/index.js',
     instances: 1,
     autorestart: true,
     watch: false,
