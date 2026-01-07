@@ -15,22 +15,13 @@ echo "======================================"
 echo "Installing Nginx and Certbot..."
 sudo apt install -y nginx certbot python3-certbot-nginx
 
-# Create Nginx config for frontend + WebSocket
+# Create initial HTTP-only Nginx config
 echo "Configuring Nginx..."
 sudo tee /etc/nginx/sites-available/slither << NGINXEOF
-# HTTP redirect to HTTPS
+# HTTP server - will be auto-configured by Certbot for HTTPS
 server {
     listen 80;
     server_name $DOMAIN;
-    return 301 https://\$server_name\$request_uri;
-}
-
-# HTTPS server
-server {
-    listen 443 ssl http2;
-    server_name $DOMAIN;
-
-    # SSL will be configured by Certbot
 
     # Serve frontend static files
     root /opt/0xSlither/client/dist;
@@ -69,17 +60,17 @@ NGINXEOF
 sudo ln -sf /etc/nginx/sites-available/slither /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Test config
+# Test HTTP config
 sudo nginx -t
+sudo systemctl reload nginx
 
-# Get SSL certificate
+# Get SSL certificate (this will auto-add HTTPS config)
+echo ""
 echo "Getting SSL certificate from Let's Encrypt..."
+echo "Certbot will automatically configure HTTPS and add redirect from HTTP."
 echo ""
 read -p "Enter your email for SSL certificate notifications: " EMAIL
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL
-
-# Reload Nginx
-sudo systemctl reload nginx
+sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
 
 # Update firewall
 sudo ufw allow 80/tcp
