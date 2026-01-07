@@ -158,7 +158,7 @@ export class UI {
     this.stakeSection.classList.remove('hidden');
     // VAULT MODE: Enable deposit immediately (no match ID wait)
     this.stakeButton.disabled = false;
-    this.stakeButton.textContent = 'Deposit 1 SSS to Vault';
+    this.stakeButton.textContent = 'Deposit 0.00005 ETH to Vault';
   }
 
   updateWalletAddress(address: string): void {
@@ -183,7 +183,7 @@ export class UI {
   }
 
   resetDepositState(): void {
-    this.stakeButton.textContent = 'Deposit 1 SSS to Vault';
+    this.stakeButton.textContent = 'Deposit 0.00005 ETH to Vault';
     this.stakeButton.disabled = false;
     this.playButton.classList.add('hidden');
     this.playButton.disabled = true;
@@ -239,7 +239,7 @@ export class UI {
 
   updateCurrentScore(pelletTokens: string): void {
     // VAULT MODE: Display pellet tokens only (kill rewards go directly to wallet)
-    this.currentScore.textContent = `${pelletTokens} SSS (Pellets)`;
+    this.currentScore.textContent = `${pelletTokens} ETH (Pellets)`;
   }
 
   updateDeathScreenWithBestScore(finalScore: number, bestScore: number): void {

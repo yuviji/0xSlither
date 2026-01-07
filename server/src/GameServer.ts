@@ -3,7 +3,6 @@ import { PelletManager } from './Pellet';
 import { CollisionDetection } from './CollisionDetection';
 import { Leaderboard } from './Leaderboard';
 import { BlockchainService } from './BlockchainService';
-import { EntropyBridgeService } from './EntropyBridgeService';
 import { DeterministicRNG } from './DeterministicRNG';
 import {
   StateMessage,
@@ -14,6 +13,8 @@ import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   PELLET_COUNT,
+  INITIAL_REGEN_POOL_ETH,
+  DEATH_TAX_RATE,
 } from '@0xslither/shared';
 
 interface PendingSnakeAdd {
@@ -29,18 +30,17 @@ export class GameServer {
   private gameLoop: NodeJS.Timeout | null = null;
   private blockchain: BlockchainService | null = null;
   private permanentMatchId: string = `permanent-match-${Date.now()}`; // Unique match ID per server restart
-  private entropyBridge: EntropyBridgeService | null = null;
   private matchRNG: DeterministicRNG | null = null;
   private entropyRequestId: string | null = null;
   private entropyPending: boolean = false;
   private devFallbackMode: boolean = false;
   private entropySeed: string | null = null;
   private consumedPelletsThisTick: Set<string> = new Set();
-  private pelletTokensDistributed: boolean = false;
+  private regenerationPoolInitialized: boolean = false;
   
   // Track player stakes for kill rewards (deposited via vault)
   private playerStakes: Map<string, number> = new Map(); // address -> stake amount
-  private readonly FIXED_STAKE_AMOUNT = 1; // Fixed 1 SSS stake per player
+  private readonly FIXED_STAKE_AMOUNT = 1; // Fixed 1 ETH stake per player
   
   // Atomic operation queues - processed at start of each tick
   private pendingAdds: PendingSnakeAdd[] = [];
@@ -49,14 +49,32 @@ export class GameServer {
   constructor() {
     // Pellet manager will be initialized after entropy is available
     this.pelletManager = new PelletManager(PELLET_COUNT);
+    
+    // Seed the regeneration pool with initial funds
+    this.initializeRegenerationPool();
+    
     console.log(`🎮 Game server initialized with permanent match ID: ${this.permanentMatchId}`);
+  }
+
+  /**
+   * Initialize the regeneration pool with server seed funding
+   * This provides initial token value for pellets
+   */
+  private initializeRegenerationPool(): void {
+    if (this.regenerationPoolInitialized) return;
+    
+    this.pelletManager.addToRegenerationPool(INITIAL_REGEN_POOL_ETH);
+    this.pelletManager.initializePelletTokens();
+    this.regenerationPoolInitialized = true;
+    
+    console.log(`💰 Regeneration pool seeded with ${INITIAL_REGEN_POOL_ETH} ETH`);
   }
 
   setBlockchainService(blockchain: BlockchainService): void {
     this.blockchain = blockchain;
     
-    // Initialize entropy bridge service
-    this.entropyBridge = new EntropyBridgeService();
+    // Set match ID for blockchain service (needed for batch reporting)
+    blockchain.setMatchId(this.permanentMatchId);
     
     // Request entropy for the permanent match in the background
     this.initializeMatchEntropy();
@@ -72,31 +90,45 @@ export class GameServer {
   /**
    * Register a player's stake when they join (for kill reward tracking)
    * @param address Player's address
-   * @param amount Stake amount (default: 1 SSS)
+   * @param amount Stake amount (default: 1 ETH)
    */
   registerPlayerStake(address: string, amount: number = 1): void {
     this.playerStakes.set(address, amount);
-    console.log(`💰 Registered stake: ${amount} SSS for ${address.slice(0, 8)}`);
+    console.log(`💰 Registered stake: ${amount} ETH for ${address.slice(0, 8)}`);
   }
 
   /**
    * Initialize match entropy (non-blocking)
-   * Requests randomness from Base Sepolia and initializes RNG when available
+   * Requests randomness from Pyth Entropy on Base and initializes RNG when available
    * Uses permanent match ID for continuous gameplay
    */
   private async initializeMatchEntropy(): Promise<void> {
-    if (!this.entropyBridge || !this.entropyBridge.isEnabled()) {
-      console.warn('⚠️  Entropy bridge not available, using fallback RNG');
+    if (!this.blockchain) {
+      console.warn('⚠️  Blockchain not available, using fallback RNG');
       this.devFallbackMode = true;
       return;
     }
 
-    console.log('🎲 Initializing match entropy for permanent match...');
+    console.log('🎲 Requesting entropy from Base Mainnet...');
     this.entropyPending = true;
 
     try {
-      // Request entropy and wait for reveal (non-blocking, runs in background)
-      const seed = await this.entropyBridge.requestAndWaitForSeed(this.permanentMatchId, 60000);
+      // Request entropy directly from BlockchainService
+      const requestId = await this.blockchain.requestMatchEntropy(this.permanentMatchId);
+      
+      if (!requestId || requestId === 'already-requested') {
+        if (requestId === 'already-requested') {
+          console.log('ℹ️  Entropy already requested, waiting for seed...');
+        } else {
+          throw new Error('Failed to request entropy');
+        }
+      } else {
+        this.entropyRequestId = requestId;
+        console.log(`✅ Entropy requested, ID: ${requestId}`);
+      }
+      
+      // Wait for seed to be revealed by Pyth
+      const seed = await this.blockchain.waitForSeed(this.permanentMatchId, 60000);
       
       if (seed) {
         console.log('✅ Entropy seed received:', seed);
@@ -112,29 +144,22 @@ export class GameServer {
         const deterministicPellets = this.matchRNG.getPelletPositions(PELLET_COUNT);
         this.pelletManager = new PelletManager(PELLET_COUNT, deterministicPellets);
         
-        // Distribute pellet tokens after pellets are initialized
-        this.distributePelletTokens();
+        // Re-seed and initialize tokens after deterministic pellet creation
+        this.regenerationPoolInitialized = false;
+        this.initializeRegenerationPool();
         
         // Get map type for logging
         const mapType = this.matchRNG.getMapType();
         console.log(`🗺️  Map type: ${mapType}`);
         
-        // Commit seed hash to Saga
-        if (this.blockchain && this.entropyRequestId) {
-          await this.blockchain.commitEntropyToSaga(this.permanentMatchId, this.entropyRequestId, seed);
-          console.log('✅ Seed hash committed to Saga');
-        }
-        
         this.entropyPending = false;
         this.devFallbackMode = false;
-        console.log('🎮 Continuous match ready with fair RNG!');
+        console.log('🎮 Match ready with Pyth Entropy from Base!');
       } else {
-        console.error('⏱️  Entropy timeout - falling back to non-cryptographic RNG');
-        this.devFallbackMode = true;
-        this.entropyPending = false;
+        throw new Error('Entropy timeout');
       }
     } catch (error) {
-      console.error('❌ Error initializing match entropy:', error);
+      console.error('❌ Error initializing entropy:', error);
       this.devFallbackMode = true;
       this.entropyPending = false;
     }
@@ -224,10 +249,8 @@ export class GameServer {
     // Process pending operations atomically at the start of tick
     this.processPendingOperations();
 
-    // Distribute pellet tokens if not already done (fallback mode)
-    if (!this.pelletTokensDistributed && this.snakes.size > 0) {
-      this.distributePelletTokens();
-    }
+    // Process pellet regeneration (respawns consumed pellets with tokens from pool)
+    this.pelletManager.processRegeneration();
 
     // Clear consumed pellets tracking for this tick
     this.consumedPelletsThisTick.clear();
@@ -302,7 +325,7 @@ export class GameServer {
               this.playerStakes.set(killer.address, killerCurrentStake + victimStake);
               this.playerStakes.delete(victim.address); // Victim loses their stake
               
-              console.log(`💰 Kill reward: ${victimStake} SSS transferred from server wallet to ${killer.address.slice(0, 8)}`);
+              console.log(`💰 Kill reward: ${victimStake} ETH transferred from server wallet to ${killer.address.slice(0, 8)}`);
               
               // Report eat to blockchain for stats/leaderboard (no stake transfer on-chain)
               this.blockchain.reportEat(this.permanentMatchId, killer.address, victim.address)
@@ -312,6 +335,13 @@ export class GameServer {
         } else {
           // Self-collision or no killer - report self death to blockchain
           console.log(`${victim.name} died from self-collision with score ${victimScore}`);
+          
+          // Apply death tax - victim's pellet tokens go to regeneration pool
+          const victimPelletTokens = victim.getPelletTokens();
+          const deathTax = victimPelletTokens * DEATH_TAX_RATE;
+          this.pelletManager.addToRegenerationPool(deathTax);
+          console.log(`💀 Death tax: ${deathTax.toFixed(4)} ETH added to regeneration pool`);
+          
           if (this.blockchain && victim.address) {
             // Remove victim's stake tracking (server keeps it)
             this.playerStakes.delete(victim.address);
@@ -329,6 +359,13 @@ export class GameServer {
       if (snake.alive && CollisionDetection.checkWorldBounds(snake, WORLD_WIDTH, WORLD_HEIGHT)) {
         const snakeScore = snake.getScore();
         console.log(`${snake.name} died from wall collision with score ${snakeScore}`);
+        
+        // Apply death tax - snake's pellet tokens go to regeneration pool
+        const snakePelletTokens = snake.getPelletTokens();
+        const deathTax = snakePelletTokens * DEATH_TAX_RATE;
+        this.pelletManager.addToRegenerationPool(deathTax);
+        console.log(`💀 Death tax (wall): ${deathTax.toFixed(4)} ETH added to regeneration pool`);
+        
         snake.kill();
         
         // Report wall collision death to blockchain
@@ -473,27 +510,28 @@ export class GameServer {
   }
 
   /**
-   * Distribute pellet tokens across all pellets
-   * Formula: (# pellets * # players) / 300 SSS
+   * Get regeneration pool info for debugging/display
    */
-  private distributePelletTokens(): void {
-    if (this.pelletTokensDistributed) {
-      return; // Already distributed
-    }
+  getRegenerationInfo(): { poolBalance: number; queueSize: number } {
+    return {
+      poolBalance: this.pelletManager.getRegenerationPoolBalance(),
+      queueSize: this.pelletManager.getQueueSize(),
+    };
+  }
 
-    const pelletCount = this.pelletManager.getPellets().length;
-    const playerCount = this.snakes.size;
+  /**
+   * Add funds to the pellet regeneration pool
+   * Used by external handlers (e.g., disconnect) to contribute death tax
+   */
+  addToRegenerationPool(amount: number): void {
+    this.pelletManager.addToRegenerationPool(amount);
+  }
 
-    if (playerCount === 0) {
-      // No players yet, wait
-      return;
-    }
-
-    const totalPelletTokens = (pelletCount * playerCount) / 300;
-    this.pelletManager.distributePelletTokens(totalPelletTokens);
-    this.pelletTokensDistributed = true;
-
-    console.log(`💰 Pellet tokens distributed: ${totalPelletTokens.toFixed(2)} SSS across ${pelletCount} pellets for ${playerCount} players`);
+  /**
+   * Clear a player's stake tracking (called on tap-out)
+   */
+  clearPlayerStake(address: string): void {
+    this.playerStakes.delete(address);
   }
 }
 

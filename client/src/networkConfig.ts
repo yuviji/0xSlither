@@ -16,42 +16,74 @@ export interface NetworkConfig {
   blockExplorerUrls: string[];
 }
 
-// Chain ID as a number for calculations
-const CHAIN_ID_DECIMAL = 2763767854157000n;
+// Chain IDs from environment variables
+export const BASE_MAINNET_CHAIN_ID = BigInt(import.meta.env.VITE_BASE_CHAIN_ID);
+export const BASE_SEPOLIA_CHAIN_ID = BigInt(import.meta.env.VITE_BASE_SEPOLIA_CHAIN_ID);
 
-// Saga Chainlet Configuration
-export const NETWORK_CONFIG: NetworkConfig = {
-  chainId: CHAIN_ID_DECIMAL,
-  chainIdHex: '0x' + CHAIN_ID_DECIMAL.toString(16), // Auto-computed: 0x9d1a1d9304cc8
-  chainName: '0xSlither Saga Chainlet',
+// Base Mainnet Configuration
+export const BASE_MAINNET_CONFIG: NetworkConfig = {
+  chainId: BASE_MAINNET_CHAIN_ID,
+  chainIdHex: '0x' + BASE_MAINNET_CHAIN_ID.toString(16),
+  chainName: 'Base',
   nativeCurrency: {
-    name: 'SSS',
-    symbol: 'SSS',
+    name: 'Ethereum',
+    symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: ['https://slither-2763767854157000-1.jsonrpc.sagarpc.io'],
-  blockExplorerUrls: ['https://slither-2763767854157000-1.sagaexplorer.io'],
+  rpcUrls: [import.meta.env.VITE_BASE_RPC_URL],
+  blockExplorerUrls: [import.meta.env.VITE_BASE_EXPLORER_URL],
 };
+
+// Base Sepolia Configuration
+export const BASE_SEPOLIA_CONFIG: NetworkConfig = {
+  chainId: BASE_SEPOLIA_CHAIN_ID,
+  chainIdHex: '0x' + BASE_SEPOLIA_CHAIN_ID.toString(16),
+  chainName: 'Base Sepolia',
+  nativeCurrency: {
+    name: 'Ethereum',
+    symbol: 'ETH',
+    decimals: 18,
+  },
+  rpcUrls: [import.meta.env.VITE_BASE_SEPOLIA_RPC_URL],
+  blockExplorerUrls: [import.meta.env.VITE_BASE_SEPOLIA_EXPLORER_URL],
+};
+
+// ============================================================================
+// NETWORK TOGGLE - Set via VITE_USE_BASE_MAINNET environment variable
+// This is the single source of truth for which network the game uses
+// ============================================================================
+const USE_BASE_MAINNET = import.meta.env.VITE_USE_BASE_MAINNET === 'true';
+
+// Active network configuration based on toggle
+export const NETWORK_CONFIG: NetworkConfig = USE_BASE_MAINNET 
+  ? BASE_MAINNET_CONFIG 
+  : BASE_SEPOLIA_CONFIG;
+
+/**
+ * Check if the given chain ID matches the configured network
+ */
+export function isCorrectNetwork(chainId: bigint): boolean {
+  return chainId === NETWORK_CONFIG.chainId;
+}
 
 /**
  * Get the parameters needed for wallet_addEthereumChain RPC call
  */
-export function getAddChainParameters() {
+export function getAddChainParameters(config: NetworkConfig = NETWORK_CONFIG) {
   return {
-    chainId: NETWORK_CONFIG.chainIdHex,
-    chainName: NETWORK_CONFIG.chainName,
-    nativeCurrency: NETWORK_CONFIG.nativeCurrency,
-    rpcUrls: NETWORK_CONFIG.rpcUrls,
-    blockExplorerUrls: NETWORK_CONFIG.blockExplorerUrls,
+    chainId: config.chainIdHex,
+    chainName: config.chainName,
+    nativeCurrency: config.nativeCurrency,
+    rpcUrls: config.rpcUrls,
+    blockExplorerUrls: config.blockExplorerUrls,
   };
 }
 
 /**
  * Get the parameters needed for wallet_switchEthereumChain RPC call
  */
-export function getSwitchChainParameters() {
+export function getSwitchChainParameters(config: NetworkConfig = NETWORK_CONFIG) {
   return {
-    chainId: NETWORK_CONFIG.chainIdHex,
+    chainId: config.chainIdHex,
   };
 }
-

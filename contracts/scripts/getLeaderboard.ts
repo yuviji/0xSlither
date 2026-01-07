@@ -1,14 +1,18 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS;
+  // Support both Base mainnet and Base Sepolia
+  const baseStakeArenaAddress = process.env.BASE_STAKE_ARENA_ADDRESS;
+  const baseSepoliaStakeArenaAddress = process.env.BASE_SEPOLIA_STAKE_ARENA_ADDRESS;
+  const stakeArenaAddress = baseStakeArenaAddress || baseSepoliaStakeArenaAddress;
   
   if (!stakeArenaAddress) {
-    console.error("Please set STAKE_ARENA_ADDRESS in .env");
+    console.error("Please set BASE_STAKE_ARENA_ADDRESS or BASE_SEPOLIA_STAKE_ARENA_ADDRESS in .env");
     process.exit(1);
   }
 
-  console.log("Fetching on-chain leaderboard...");
+  const networkName = baseStakeArenaAddress ? 'Base' : 'Base Sepolia';
+  console.log(`Fetching on-chain leaderboard from ${networkName}...`);
   console.log("StakeArena:", stakeArenaAddress);
 
   const StakeArena = await ethers.getContractAt("StakeArena", stakeArenaAddress);

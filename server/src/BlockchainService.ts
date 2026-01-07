@@ -1,24 +1,45 @@
 import { ethers } from 'ethers';
 
+// Event types for batch reporting (must match Solidity enum)
+enum EventType {
+  EAT = 0,
+  DEATH = 1,
+}
+
+interface StatEvent {
+  eventType: EventType;
+  player1: string;
+  player2: string;
+  score: number;
+}
+
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
   'function depositToVault() external payable',
   'function reportEat(bytes32 matchId, address eater, address eaten) external',
   'function reportSelfDeath(bytes32 matchId, address player, uint256 score) external',
-  'function commitEntropy(bytes32 matchId, bytes32 entropyRequestId, bytes32 seedHash) external',
+  'function reportBatchedStats(bytes32 matchId, tuple(uint8 eventType, address player1, address player2, uint256 score)[] events) external',
   'function finalizeMatch(bytes32 matchId, address[] calldata players, uint256[] calldata scores, address winner) external',
   'function withdrawBalance() external',
   'function getLeaderboard() external view returns (tuple(address player, uint256 score)[])',
   'function bestScore(address player) external view returns (uint256)',
   'function getStake(bytes32 matchId, address player) external view returns (uint256)',
   'function isActive(bytes32 matchId, address player) external view returns (bool)',
+  'function requestMatchEntropy(bytes32 matchId) external payable',
+  'function getMatchSeed(bytes32 matchId) external view returns (bytes32)',
+  'function isSeedAvailable(bytes32 matchId) external view returns (bool)',
+  'function hasRequestedEntropy(bytes32 matchId) external view returns (bool)',
+  'function getEntropyFee() external view returns (uint256)',
+  'function registerPlayerJoin(bytes32 matchId, address player) external',
   'event DepositedToVault(address indexed player, uint256 amount, uint256 timestamp)',
   'event EatReported(bytes32 indexed matchId, address indexed eater, address indexed eaten, uint256 timestamp)',
   'event SelfDeathReported(bytes32 indexed matchId, address indexed player, uint256 score, uint256 timestamp)',
   'event EatLoot(bytes32 indexed matchId, address indexed eater, address indexed eaten, uint256 amountTransferred, uint256 timestamp)',
   'event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp)',
   'event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp)',
-  'event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId)',
+  'event EntropyRequested(bytes32 indexed matchId, uint64 requestId)',
+  'event EntropyStored(bytes32 indexed matchId, bytes32 seed)',
+  'event BatchStatsReported(bytes32 indexed matchId, uint256 eventCount, uint256 timestamp)',
 ];
 
 
@@ -36,6 +57,7 @@ export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private stakeArena: ethers.Contract;
+  private explorerUrl: string;
   private pendingTxs: PendingTransaction[] = [];
   private readonly maxRetries = 3;
   private readonly retryDelay = 2000; // 2 seconds
@@ -44,10 +66,18 @@ export class BlockchainService {
   // Each address has a promise chain that ensures operations are serialized
   private addressQueues: Map<string, Promise<void>> = new Map();
 
+  // Batch reporting for stats (non-critical events)
+  private statBatchBuffer: StatEvent[] = [];
+  private lastBatchFlush: number = Date.now();
+  private readonly BATCH_INTERVAL_MS = 15000; // 15 seconds
+  private readonly BATCH_SIZE_THRESHOLD = 50; // Flush when buffer reaches this size
+  private matchId: string = ''; // Set by server
+
   constructor(
     rpcUrl: string,
     privateKey: string,
-    stakeArenaAddress: string
+    stakeArenaAddress: string,
+    explorerUrl: string
   ) {
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(privateKey, this.provider);
@@ -56,11 +86,36 @@ export class BlockchainService {
       STAKE_ARENA_ABI,
       this.wallet
     );
+    this.explorerUrl = explorerUrl;
 
     console.log('BlockchainService initialized');
     console.log('Server wallet:', this.wallet.address);
     console.log('StakeArena contract:', stakeArenaAddress);
-    console.log('Using native SSS token for game economy');
+    console.log('Using native ETH for game economy');
+    
+    // Start periodic batch flush timer
+    this.startBatchFlushTimer();
+  }
+
+  /**
+   * Set the current match ID for batch reporting
+   */
+  setMatchId(matchId: string): void {
+    this.matchId = matchId;
+  }
+
+  /**
+   * Start periodic batch flush timer
+   */
+  private startBatchFlushTimer(): void {
+    setInterval(() => {
+      if (this.statBatchBuffer.length > 0) {
+        const timeSinceFlush = Date.now() - this.lastBatchFlush;
+        if (timeSinceFlush >= this.BATCH_INTERVAL_MS) {
+          this.flushStatBatch();
+        }
+      }
+    }, 5000); // Check every 5 seconds
   }
 
   /**
@@ -74,7 +129,7 @@ export class BlockchainService {
    * Verify that a player has deposited to the vault recently
    * Checks DepositedToVault events from the contract
    * @param playerAddress Player's address
-   * @param minAmount Minimum deposit amount required (in SSS)
+   * @param minAmount Minimum deposit amount required (in ETH)
    * @param blocksBack How many blocks back to check (default: 1000)
    * @returns True if player has deposited at least minAmount
    */
@@ -103,13 +158,13 @@ export class BlockchainService {
         if ('args' in event && event.args) {
           const depositAmount = event.args.amount || 0n;
           if (depositAmount >= minAmountWei) {
-            console.log(`[Blockchain] ✅ Verified deposit: ${ethers.formatEther(depositAmount)} SSS from ${playerAddress.slice(0, 8)}`);
+            console.log(`[Blockchain] ✅ Verified deposit: ${ethers.formatEther(depositAmount)} ETH from ${playerAddress.slice(0, 8)}`);
             return true;
           }
         }
       }
       
-      console.log(`[Blockchain] Deposits found but below minimum ${minAmount} SSS for ${playerAddress.slice(0, 8)}`);
+      console.log(`[Blockchain] Deposits found but below minimum ${minAmount} ETH for ${playerAddress.slice(0, 8)}`);
       return false;
     } catch (error) {
       console.error('[Blockchain] Error verifying vault deposit:', error);
@@ -121,36 +176,36 @@ export class BlockchainService {
    * Transfer kill reward directly from server wallet to killer
    * This is used in vault mode where stakes are held in server wallet
    * @param killerAddress Address of the player who got the kill
-   * @param amount Amount to transfer (victim's stake, in SSS)
+   * @param amount Amount to transfer (victim's stake, in ETH)
    */
   async transferKillReward(
     killerAddress: string,
     amount: number
   ): Promise<void> {
-    const description = `transferKillReward: ${amount.toFixed(2)} SSS to ${killerAddress.slice(0, 8)}`;
+    const description = `transferKillReward: ${amount.toFixed(2)} ETH to ${killerAddress.slice(0, 8)}`;
     
     // Queue this operation for the killer's address
     const operation = async () => {
       await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
         
-        // Convert amount to wei (18 decimals for native SSS)
+        // Convert amount to wei (18 decimals for native ETH)
         const amountWei = ethers.parseEther(amount.toFixed(18));
         
         // Check server wallet balance
         const serverBalance = await this.provider.getBalance(this.wallet.address);
         if (serverBalance < amountWei) {
-          console.error(`[Blockchain] Insufficient server balance for kill reward: ${ethers.formatEther(serverBalance)} < ${amount.toFixed(2)} SSS`);
+          console.error(`[Blockchain] Insufficient server balance for kill reward: ${ethers.formatEther(serverBalance)} < ${amount.toFixed(2)} ETH`);
           throw new Error('Insufficient server balance for kill reward');
         }
         
-        // Transfer native SSS from server to killer
+        // Transfer native ETH from server to killer
         const tx = await this.wallet.sendTransaction({
           to: killerAddress,
           value: amountWei,
         });
         const receipt = await tx.wait();
-        console.log(`[Blockchain] ✅ Kill reward sent: ${amount.toFixed(2)} SSS to ${killerAddress.slice(0, 8)}, tx: ${receipt!.hash}`);
+        console.log(`[Blockchain] ✅ Kill reward sent: ${amount.toFixed(2)} ETH to ${killerAddress.slice(0, 8)}, tx: ${receipt!.hash}`);
         return receipt;
       }, description);
     };
@@ -160,65 +215,72 @@ export class BlockchainService {
   }
 
   /**
-   * Report that one player ate another (stats/leaderboard only in vault mode)
+   * Report that one player ate another (batched for efficiency)
    * In vault mode, stake transfers happen via transferKillReward()
-   * Non-blocking, fire-and-forget with retry logic
+   * This is for stats/leaderboard only
    */
   async reportEat(
     matchId: string,
     eaterAddress: string,
     eatenAddress: string
   ): Promise<void> {
-    const description = `reportEat: ${eaterAddress.slice(0, 8)} ate ${eatenAddress.slice(0, 8)} in match ${matchId.slice(0, 10)}`;
+    // Add to batch buffer instead of immediate transaction
+    this.statBatchBuffer.push({
+      eventType: EventType.EAT,
+      player1: eaterAddress,
+      player2: eatenAddress,
+      score: 0,
+    });
     
-    // Fire-and-forget, no queueing needed since no state changes
-    const txPromise = this.executeWithRetry(async () => {
-      console.log(`[Blockchain] ${description}`);
-      
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      const tx = await this.stakeArena.reportEat(
-        matchIdBytes32,
-        eaterAddress,
-        eatenAddress
-      );
-      console.log(`[Blockchain] reportEat tx sent: ${tx.hash}`);
-      const receipt = await tx.wait();
-      console.log(`[Blockchain] ✅ reportEat confirmed (stats only): ${receipt.hash}`);
-      return receipt;
-    }, description);
-
-    this.pendingTxs.push({ promise: txPromise, description });
-    this.cleanupPendingTxs();
+    // Flush if buffer is full
+    if (this.statBatchBuffer.length >= this.BATCH_SIZE_THRESHOLD) {
+      await this.flushStatBatch();
+    }
   }
 
   /**
-   * Report that a player died from self-inflicted causes (leaderboard update only in vault mode)
+   * Report that a player died from self-inflicted causes (batched for efficiency)
    * (wall collision, eating self, disconnect, etc.)
-   * In vault mode, stakes are already in server wallet, no transfer needed
-   * Non-blocking, fire-and-forget with retry logic
+   * This is for leaderboard updates only
    */
   async reportSelfDeath(
     matchId: string,
     playerAddress: string,
     score: number
   ): Promise<void> {
-    const description = `reportSelfDeath: ${playerAddress.slice(0, 8)} died with score ${score} in match ${matchId.slice(0, 10)}`;
+    // Add to batch buffer instead of immediate transaction
+    this.statBatchBuffer.push({
+      eventType: EventType.DEATH,
+      player1: playerAddress,
+      player2: ethers.ZeroAddress,
+      score: score,
+    });
     
-    // Fire-and-forget, no queueing needed since no state changes
+    // Flush if buffer is full
+    if (this.statBatchBuffer.length >= this.BATCH_SIZE_THRESHOLD) {
+      await this.flushStatBatch();
+    }
+  }
+
+  /**
+   * Flush batched stat events to blockchain
+   */
+  private async flushStatBatch(): Promise<void> {
+    if (this.statBatchBuffer.length === 0) return;
+
+    const batch = [...this.statBatchBuffer];
+    this.statBatchBuffer = [];
+    this.lastBatchFlush = Date.now();
+
+    const description = `flushStatBatch: ${batch.length} events`;
+    
     const txPromise = this.executeWithRetry(async () => {
-      console.log(`[Blockchain] ${description}`);
+      console.log(`[Blockchain] Flushing ${batch.length} stat events`);
       
-      // Convert string match ID to bytes32
-      const matchIdBytes32 = ethers.id(matchId);
-      const tx = await this.stakeArena.reportSelfDeath(
-        matchIdBytes32,
-        playerAddress,
-        score
-      );
-      console.log(`[Blockchain] reportSelfDeath tx sent: ${tx.hash}`);
+      const matchIdBytes32 = ethers.id(this.matchId);
+      const tx = await this.stakeArena.reportBatchedStats(matchIdBytes32, batch);
       const receipt = await tx.wait();
-      console.log(`[Blockchain] ✅ reportSelfDeath confirmed (leaderboard only): ${receipt.hash}`);
+      console.log(`[Blockchain] ✅ Batch flushed: ${receipt!.hash} (${batch.length} events)`);
       return receipt;
     }, description);
 
@@ -227,53 +289,180 @@ export class BlockchainService {
   }
 
   /**
-   * Commit entropy seed hash to Saga for a match
+   * Force flush any pending batched stats (call before shutdown)
+   */
+  async forceFlushBatch(): Promise<void> {
+    if (this.statBatchBuffer.length > 0) {
+      console.log(`[Blockchain] Force flushing ${this.statBatchBuffer.length} pending stat events`);
+      await this.flushStatBatch();
+    }
+  }
+
+  /**
+   * Request entropy for a match from Pyth (via StakeArena)
    * @param matchId Match identifier string
-   * @param entropyRequestId Entropy request ID from Base Sepolia (sequence number)
-   * @param seed The actual random seed from Pyth Entropy
-   * Non-blocking with retry logic
+   * @returns Request ID (sequence number) or null if failed
    */
-  async commitEntropyToSaga(matchId: string, entropyRequestId: string, seed: string): Promise<void> {
-    const description = `commitEntropy for match ${matchId.slice(0, 10)}`;
+  async requestMatchEntropy(matchId: string): Promise<string | null> {
+    try {
+      const matchIdBytes32 = ethers.id(matchId);
+      console.log(`[Blockchain] Requesting entropy for match ${matchId}`);
+      console.log(`[Blockchain] Match ID (bytes32): ${matchIdBytes32}`);
+
+      // Check if already requested
+      const alreadyRequested = await this.stakeArena.hasRequestedEntropy(matchIdBytes32);
+      if (alreadyRequested) {
+        console.log(`[Blockchain] Entropy already requested for match ${matchId}`);
+        // Could retrieve the request ID if needed, but we don't store it separately
+        return 'already-requested';
+      }
+
+      // Get entropy fee
+      const fee = await this.stakeArena.getEntropyFee();
+      console.log(`[Blockchain] Entropy fee: ${ethers.formatEther(fee)} ETH`);
+
+      // Check wallet balance
+      const balance = await this.provider.getBalance(this.wallet.address);
+      if (balance < fee) {
+        console.error(`[Blockchain] Insufficient balance: ${ethers.formatEther(balance)} ETH, need ${ethers.formatEther(fee)} ETH`);
+        return null;
+      }
+
+      // Request entropy
+      console.log('[Blockchain] Sending requestMatchEntropy transaction...');
+      const tx = await this.stakeArena.requestMatchEntropy(matchIdBytes32, { value: fee });
+      console.log(`[Blockchain] Transaction sent: ${tx.hash}`);
+      console.log(`[Blockchain] View on Explorer: ${this.explorerUrl}/tx/${tx.hash}`);
+
+      const receipt = await tx.wait();
+      console.log(`[Blockchain] Transaction confirmed in block ${receipt!.blockNumber}`);
+
+      // Parse EntropyRequested event
+      const entropyRequestedEvent = receipt!.logs
+        .map((log: any) => {
+          try {
+            return this.stakeArena.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((event: any) => event && event.name === 'EntropyRequested');
+
+      if (entropyRequestedEvent) {
+        const requestId = entropyRequestedEvent.args.requestId.toString();
+        console.log(`[Blockchain] ✅ Entropy requested! Request ID: ${requestId}`);
+        return requestId;
+      } else {
+        console.error('[Blockchain] EntropyRequested event not found in receipt');
+        return null;
+      }
+    } catch (error) {
+      console.error('[Blockchain] Error requesting entropy:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if seed is available for a match
+   * @param matchId Match identifier string
+   */
+  async isSeedAvailable(matchId: string): Promise<boolean> {
+    try {
+      const matchIdBytes32 = ethers.id(matchId);
+      return await this.stakeArena.isSeedAvailable(matchIdBytes32);
+    } catch (error) {
+      console.error('[Blockchain] Error checking seed availability:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get the revealed seed for a match
+   * @param matchId Match identifier string
+   * @returns Seed (bytes32 string) or null if not available
+   */
+  async getMatchSeed(matchId: string): Promise<string | null> {
+    try {
+      const matchIdBytes32 = ethers.id(matchId);
+      const seed = await this.stakeArena.getMatchSeed(matchIdBytes32);
+      
+      if (seed === ethers.ZeroHash) {
+        return null;
+      }
+      
+      console.log(`[Blockchain] ✅ Retrieved seed for match ${matchId}: ${seed}`);
+      return seed;
+    } catch (error) {
+      console.error('[Blockchain] Error getting match seed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Wait for match seed to be available (with timeout)
+   * Polls until seed is revealed by Pyth
+   * @param matchId Match identifier string
+   * @param maxWaitMs Maximum time to wait in milliseconds (default 60s)
+   * @param pollIntervalMs Polling interval in milliseconds (default 3s)
+   * @returns Seed or null if timeout
+   */
+  async waitForSeed(
+    matchId: string,
+    maxWaitMs: number = 60000,
+    pollIntervalMs: number = 3000
+  ): Promise<string | null> {
+    console.log(`[Blockchain] Waiting for seed for match ${matchId}...`);
+    console.log(`[Blockchain] Max wait: ${maxWaitMs / 1000}s, poll interval: ${pollIntervalMs / 1000}s`);
+    
+    const startTime = Date.now();
+    let attempt = 0;
+
+    while (Date.now() - startTime < maxWaitMs) {
+      attempt++;
+      
+      // Check if seed is available
+      const available = await this.isSeedAvailable(matchId);
+      
+      if (available) {
+        const seed = await this.getMatchSeed(matchId);
+        if (seed) {
+          console.log(`[Blockchain] ✅ Seed available after ${(Date.now() - startTime) / 1000}s (${attempt} attempts)`);
+          return seed;
+        }
+      }
+
+      // Calculate dynamic poll interval with exponential backoff
+      const currentPollInterval = Math.min(pollIntervalMs * Math.pow(1.2, Math.floor(attempt / 3)), 10000);
+      
+      console.log(`[Blockchain] Seed not yet available (attempt ${attempt}, waited ${Math.floor((Date.now() - startTime) / 1000)}s)...`);
+      
+      // Sleep before next poll
+      await this.sleep(currentPollInterval);
+    }
+
+    console.error(`[Blockchain] ⏱️  Timeout waiting for seed after ${maxWaitMs / 1000}s`);
+    return null;
+  }
+
+  /**
+   * Register a player joining the match (for spawn verification)
+   * @param matchId Match identifier
+   * @param playerAddress Player's address
+   */
+  async registerPlayerJoin(matchId: string, playerAddress: string): Promise<void> {
+    const description = `registerPlayerJoin: ${playerAddress.slice(0, 8)} in match ${matchId.slice(0, 10)}`;
     
     const txPromise = this.executeWithRetry(async () => {
       console.log(`[Blockchain] ${description}`);
-      console.log(`[Blockchain] Entropy request ID: ${entropyRequestId}`);
-      console.log(`[Blockchain] Seed: ${seed}`);
-      
-      // Convert match ID to bytes32
       const matchIdBytes32 = ethers.id(matchId);
-      
-      // Convert request ID to bytes32 (it's a uint64, so pad it)
-      const requestIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(entropyRequestId), 32);
-      
-      // Hash the seed for on-chain storage
-      const seedHash = ethers.keccak256(ethers.toUtf8Bytes(seed));
-      
-      console.log(`[Blockchain] Match ID (bytes32): ${matchIdBytes32}`);
-      console.log(`[Blockchain] Request ID (bytes32): ${requestIdBytes32}`);
-      console.log(`[Blockchain] Seed hash: ${seedHash}`);
-      
-      const tx = await this.stakeArena.commitEntropy(matchIdBytes32, requestIdBytes32, seedHash);
+      const tx = await this.stakeArena.registerPlayerJoin(matchIdBytes32, playerAddress);
       const receipt = await tx.wait();
-      console.log(`[Blockchain] ✅ commitEntropy confirmed: ${receipt.hash}`);
-      console.log(`[Blockchain] View on explorer: ${process.env.SAGA_EXPLORER_URL || 'N/A'}/tx/${receipt.hash}`);
+      console.log(`[Blockchain] ✅ Player join registered: ${receipt!.hash}`);
       return receipt;
     }, description);
 
     this.pendingTxs.push({ promise: txPromise, description });
     this.cleanupPendingTxs();
-  }
-
-  /**
-   * Legacy method for backward compatibility
-   * @deprecated Use commitEntropyToSaga instead
-   */
-  async commitEntropy(matchId: string, entropyRequestId: string): Promise<void> {
-    console.warn('[Blockchain] commitEntropy is deprecated, use commitEntropyToSaga with seed parameter');
-    // Create a dummy seed hash for backward compatibility
-    const dummySeedHash = ethers.keccak256(ethers.toUtf8Bytes(entropyRequestId));
-    await this.commitEntropyToSaga(matchId, entropyRequestId, entropyRequestId);
   }
 
   /**
@@ -299,7 +488,7 @@ export class BlockchainService {
         winner
       );
       const receipt = await tx.wait();
-      console.log(`[Blockchain] finalizeMatch confirmed: ${receipt.hash}`);
+      console.log(`[Blockchain] finalizeMatch confirmed: ${receipt!.hash}`);
       return receipt;
     }, description);
 
@@ -458,7 +647,7 @@ export class BlockchainService {
   }
 
   /**
-   * Withdraw accumulated native SSS from StakeArena contract to server wallet
+   * Withdraw accumulated native ETH from StakeArena contract to server wallet
    * This retrieves funds from self-deaths and other contract accumulations
    */
   async withdrawContractBalance(): Promise<boolean> {
@@ -466,32 +655,32 @@ export class BlockchainService {
       // Get the StakeArena contract address
       const contractAddress = await this.stakeArena.getAddress();
       
-      // Check the contract's native SSS balance
+      // Check the contract's native ETH balance
       const balance = await this.provider.getBalance(contractAddress);
       const balanceFormatted = ethers.formatEther(balance);
       
-      console.log(`[Blockchain] StakeArena contract balance: ${balanceFormatted} SSS`);
+      console.log(`[Blockchain] StakeArena contract balance: ${balanceFormatted} ETH`);
       
-      // Only withdraw if balance is above a threshold (e.g., 10 SSS)
-      const threshold = ethers.parseEther("10");
+      // Only withdraw if balance is above a threshold (e.g., 0.01 ETH)
+      const threshold = ethers.parseEther("0.01");
       
       if (balance < threshold) {
-        console.log(`[Blockchain] Balance below threshold (${ethers.formatEther(threshold)} SSS), skipping withdrawal`);
+        console.log(`[Blockchain] Balance below threshold (${ethers.formatEther(threshold)} ETH), skipping withdrawal`);
         return false;
       }
       
-      console.log(`[Blockchain] Withdrawing ${balanceFormatted} SSS from contract to server wallet...`);
+      console.log(`[Blockchain] Withdrawing ${balanceFormatted} ETH from contract to server wallet...`);
       
       // Call withdrawBalance function
       const tx = await this.stakeArena.withdrawBalance();
       const receipt = await tx.wait();
       
-      console.log(`[Blockchain] ✅ Successfully withdrew ${balanceFormatted} SSS`);
+      console.log(`[Blockchain] ✅ Successfully withdrew ${balanceFormatted} ETH`);
       console.log(`[Blockchain] Transaction: ${receipt?.hash}`);
       
       // Check new server wallet balance
       const serverBalance = await this.provider.getBalance(this.wallet.address);
-      console.log(`[Blockchain] Server wallet balance: ${ethers.formatEther(serverBalance)} SSS`);
+      console.log(`[Blockchain] Server wallet balance: ${ethers.formatEther(serverBalance)} ETH`);
       
       return true;
     } catch (error) {
@@ -501,7 +690,7 @@ export class BlockchainService {
   }
 
   /**
-   * Get the StakeArena contract's native SSS balance
+   * Get the StakeArena contract's native ETH balance
    */
   async getContractBalance(): Promise<string> {
     try {
@@ -515,7 +704,7 @@ export class BlockchainService {
   }
 
   /**
-   * Get the server wallet's native SSS balance
+   * Get the server wallet's native ETH balance
    */
   async getServerWalletBalance(): Promise<string> {
     try {
@@ -529,7 +718,7 @@ export class BlockchainService {
 
   /**
    * Settle pellet tokens at match end/tap-out
-   * Server pays out accumulated pellet tokens to player via native SSS transfer
+   * Server pays out accumulated pellet tokens to player via native ETH transfer
    * @param playerAddress Player's address
    * @param pelletTokens Amount of pellet tokens the player accumulated
    */
@@ -537,7 +726,7 @@ export class BlockchainService {
     playerAddress: string,
     pelletTokens: number
   ): Promise<void> {
-    const description = `settlePelletTokens: ${pelletTokens.toFixed(2)} SSS to ${playerAddress.slice(0, 8)}`;
+    const description = `settlePelletTokens: ${pelletTokens.toFixed(2)} ETH to ${playerAddress.slice(0, 8)}`;
     
     // If player has no pellet tokens, nothing to settle
     if (pelletTokens <= 0) {
@@ -550,23 +739,23 @@ export class BlockchainService {
       await this.executeWithRetry(async () => {
         console.log(`[Blockchain] ${description}`);
         
-        // Convert pellet tokens to wei (18 decimals for native SSS)
+        // Convert pellet tokens to wei (18 decimals for native ETH)
         const amountWei = ethers.parseEther(pelletTokens.toFixed(18));
         
         // Check server wallet balance (native token balance)
         const serverBalance = await this.provider.getBalance(this.wallet.address);
         if (serverBalance < amountWei) {
-          console.error(`[Blockchain] Insufficient server balance for pellet token payout: ${ethers.formatEther(serverBalance)} < ${pelletTokens.toFixed(2)} SSS`);
+          console.error(`[Blockchain] Insufficient server balance for pellet token payout: ${ethers.formatEther(serverBalance)} < ${pelletTokens.toFixed(2)} ETH`);
           throw new Error('Insufficient server balance for pellet token payout');
         }
         
-        // Transfer native SSS from server to player
+        // Transfer native ETH from server to player
         const tx = await this.wallet.sendTransaction({
           to: playerAddress,
           value: amountWei,
         });
         const receipt = await tx.wait();
-        console.log(`[Blockchain] ✅ Pellet tokens settled: ${pelletTokens.toFixed(2)} SSS to ${playerAddress.slice(0, 8)}, tx: ${receipt!.hash}`);
+        console.log(`[Blockchain] ✅ Pellet tokens settled: ${pelletTokens.toFixed(2)} ETH to ${playerAddress.slice(0, 8)}, tx: ${receipt!.hash}`);
         return receipt;
       }, description);
     };
@@ -582,4 +771,3 @@ export class BlockchainService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
-

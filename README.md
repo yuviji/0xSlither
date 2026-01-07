@@ -2,25 +2,18 @@
 
 A real-time multiplayer snake game with a complete on-chain economy powered by blockchain technology.
 
-**Built for ETHGlobal Buenos Aires 2025** 🇦🇷
-
 [![Play Now](https://img.shields.io/badge/🎮_Play_Now-0xslither.vercel.app-success?style=for-the-badge)](https://0xslither.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-**🔴 LIVE NOW**: [https://0xslither.vercel.app](https://0xslither.vercel.app)
+**🔴 LIVE NOW**: [https://0xslither.yuvrajlakhotia.me](https://0xslither.yuvrajlakhotia.me)
 
-Before you do it make sure to get some SSS tokens from [https://sss-faucet.vercel.app](https://sss-faucet.vercel.app) and go to [https://94.103.168.84](https://94.103.168.84) to whitelist the WebSocket connection. The servers are in Germany / Poland so latency may not be flawless, I've added many optimizations to get it to a functional state 😅
+Connect your MetaMask wallet and deposit ETH to play! The game runs on Base Mainnet with native ETH for staking. Server hosting details and performance optimizations ensure smooth gameplay.
 
 ---
 
 ## 🌟 What is 0xSlither?
 
 0xSlither is a multiplayer snake game where players stake tokens to enter matches and winners collect the stakes of players they eliminate. Every match uses cryptographically verifiable randomness for fair spawn positions and pellet placement. All game results, stakes, and leaderboards are stored permanently on-chain.
-
-**🚀 Fully Deployed & Production Ready**
-- **Frontend**: Hosted on Vercel
-- **Game Server**: Hosted on Fluence CPU (decentralized compute)
-- **Smart Contracts**: Deployed on Saga Chainlet & Base Sepolia
 
 ### 🎯 Core Features
 
@@ -32,20 +25,20 @@ Before you do it make sure to get some SSS tokens from [https://sss-faucet.verce
 - **Responsive Camera**: Smooth camera following with easing
 
 #### Blockchain Economy
-- **Stake-to-Enter**: Players stake SSS tokens to join matches
-- **Winner Takes All**: Collect 100% of eliminated players' stakes
-- **Tap-Out Anytime**: Exit safely and withdraw your current stake
-- **On-Chain Leaderboard**: Top players tracked permanently on [Saga Explorer](https://slither-2763767854157000-1.sagaexplorer.io/txs)
-- **Match Finalization**: Results and best scores stored on-chain
-- **Auto Network Config**: MetaMask automatically configured (no manual setup!)
+- **Stake-to-Enter**: Players stake ETH to join matches (vault model)
+- **Winner Takes All**: Collect 100% of eliminated players' stakes instantly
+- **Tap-Out Anytime**: Exit safely and withdraw pellet token rewards
+- **On-Chain Leaderboard**: Top players tracked permanently on [BaseScan](https://basescan.org)
+- **Hybrid Batching**: Instant rewards, batched stats (gas-efficient)
+- **Auto Network Config**: MetaMask automatically configured for Base (no manual setup!)
 
 #### Fair Randomness (Pyth Entropy)
-- **Cryptographically Secure RNG**: Powered by [Pyth Entropy on Base Sepolia](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492)
-- **Cross-Chain Architecture**: Bridges randomness between Base Sepolia (entropy) and Saga (game)
+- **Cryptographically Secure RNG**: Powered by [Pyth Entropy V2 on Base](https://basescan.org/address/0x6e7d74fa7d5c90fef9f0512987605a6d546181bb)
+- **Single-Chain Architecture**: Direct entropy integration on Base (no bridge needed)
 - **Deterministic Gameplay**: Single on-chain seed generates all match-critical random values
 - **Provable Fairness**: Spawn positions, colors, and pellet layouts derived from verifiable entropy
 - **Reproducible Matches**: Same seed + player roster = identical match conditions
-- **On-Chain Verification**: Match seed hash committed to blockchain for auditability
+- **On-Chain Verification**: Anyone can verify spawn positions were fair using contract view functions
 
 ---
 
@@ -53,17 +46,13 @@ Before you do it make sure to get some SSS tokens from [https://sss-faucet.verce
 
 ### 🎮 Play Online Now
 
-**Visit [0xslither.vercel.app](https://0xslither.vercel.app)** and start playing immediately!
+**Visit [0xslither.yuvrajlakhotia.me](https://0xslither.yuvrajlakhotia.me)** and start playing immediately!
 
-1. Open [https://0xslither.vercel.app](https://0xslither.vercel.app)
-2. Connect your MetaMask wallet (optional)
+1. Open [https://0xslither.yuvrajlakhotia.me](https://0xslither.yuvrajlakhotia.me)
+2. Connect your MetaMask wallet (will auto-configure Base network)
 3. Enter your name
-4. Stake SSS tokens or play for free
+4. Deposit 0.00005 ETH to vault
 5. Start eating and growing!
-
-> **Server**: Running on Fluence CPU (decentralized compute platform)  
-> **Frontend**: Hosted on Vercel  
-> **Blockchain**: Saga Chainlet + Base Sepolia
 
 ### 🔧 Run Locally (For Development)
 
@@ -86,7 +75,7 @@ Open http://localhost:3000 to play your local version.
 - **Node.js** 18+ ([Download](https://nodejs.org/))
 - **pnpm** package manager ([Install](https://pnpm.io/installation))
 - **MetaMask** browser extension (for blockchain features)
-- **Test tokens** (SSS for Saga, ETH for Base Sepolia - see [Getting Test Tokens](#getting-test-tokens))
+- **ETH on Base** (for production) or Base Sepolia ETH (for testing)
 
 ---
 
@@ -129,12 +118,12 @@ Open http://localhost:3000 in your browser.
 
 1. **Connect Wallet** (optional - only for staking features)
 2. **Enter Your Name**
-3. **Stake SSS Tokens** or click "Play" to play for free
+3. **Deposit ETH to Vault** or click "Play" to play for free
 4. **Move Mouse** to control your snake's direction
-5. **Eat Pellets** to grow bigger
+5. **Eat Pellets** to grow bigger and earn pellet tokens
 6. **Avoid Other Snakes** - hitting their body kills you!
-7. **Eliminate Others** to collect their stakes
-8. **Tap Out** anytime to safely exit and withdraw
+7. **Eliminate Others** to instantly collect their stakes (direct ETH transfer)
+8. **Tap Out** anytime to safely exit and withdraw pellet token rewards
 
 ---
 
@@ -145,9 +134,9 @@ Open http://localhost:3000 in your browser.
 | Component | Platform | URL/Details |
 |-----------|----------|-------------|
 | **Frontend** | Vercel | [0xslither.vercel.app](https://0xslither.vercel.app) |
-| **Game Server** | Fluence CPU | Decentralized compute platform |
-| **Smart Contracts** | Saga Chainlet | [View on Explorer](https://slither-2763767854157000-1.sagaexplorer.io/txs) |
-| **Randomness Oracle** | Base Sepolia | [View Contract](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492) |
+| **Game Server** | Real-time WebSocket Server | Authoritative 20 TPS game loop |
+| **Smart Contract** | Base Mainnet | [View on BaseScan](https://basescan.org) (update after deployment) |
+| **Randomness** | Pyth Entropy V2 | Integrated directly in contract |
 
 ### Why Fluence CPU?
 
@@ -163,62 +152,54 @@ Fluence CPU provides decentralized compute infrastructure, ensuring:
 
 ### Multi-Chain Setup
 
-0xSlither uses a dual-chain architecture:
+0xSlither uses a unified architecture on Base:
 
-1. **Saga Chainlet** (Primary Game Chain)
-   - Dedicated EVM L1 with recycled gas fees
-   - Hosts the main game contract (`StakeArena`)
-   - Handles staking, leaderboards, and match results
-   - Uses native SSS tokens
+1. **Base Mainnet** (Single-Chain Architecture)
+   - L2 chain with low gas costs and high performance
+   - Hosts unified `StakeArena` contract with integrated Pyth Entropy
+   - Handles staking, leaderboards, randomness, and all game logic
+   - Uses native ETH for all transactions
 
-2. **Base Sepolia** (Randomness Chain)
-   - L2 testnet hosting Pyth Entropy oracle
-   - Provides cryptographically secure randomness
-   - Server bridges entropy from Base to Saga
+### Key Architecture Improvements
 
-### Getting Test Tokens
+- **No Bridge Required**: Entropy is requested and consumed on same chain
+- **Gas Efficient**: Hybrid batching (instant rewards, batched stats)
+- **Simpler Deployment**: Single contract instead of multiple
+- **Better Wallet Support**: Base is widely supported ecosystem
 
-#### Saga Chainlet SSS Tokens
-1. Add Saga Chainlet to MetaMask (automatic via the game UI)
-2. Get SSS tokens from the [Saga Faucet](https://faucet.saga.xyz/) or ask in Discord
+### Getting ETH
 
-#### Base Sepolia ETH
-1. Add Base Sepolia to MetaMask
-2. Get testnet ETH from [Base Sepolia Faucet](https://www.basescan.org/faucet) or [Alchemy Faucet](https://www.alchemy.com/faucets/base-sepolia)
+#### Base Mainnet (Production)
+- Bridge ETH to Base using [Base Bridge](https://bridge.base.org)
+- Or buy directly on Base via exchanges
+
+#### Base Sepolia (Testing)
+1. Get Sepolia ETH from [Sepolia Faucet](https://sepoliafaucet.com/)
+2. Bridge to Base Sepolia using [Base Bridge](https://bridge.base.org)
+
+#### Base Mainnet ETH
+1. Add Base Mainnet to MetaMask (Chain ID: 8453)
+2. Bridge ETH from Ethereum mainnet using [Base Bridge](https://bridge.base.org/)
 
 ### Contract Deployment
 
-#### 1. Deploy to Saga Chainlet
+#### Deploy to Base Mainnet
 
 ```bash
 cd contracts
 
 # Create .env file
 cat > .env << EOF
-SAGA_CHAINLET_RPC_URL=https://slither-2763767854157000-1.jsonrpc.sagarpc.io
-DEPLOYER_PRIVATE_KEY=your_private_key_here
+BASE_RPC_URL=https://mainnet.base.org
+PRIVATE_KEY=your_private_key_here
+BASESCAN_API_KEY=your_basescan_api_key_here
 EOF
 
 # Deploy StakeArena contract
-pnpm run deploy:saga
+pnpm run deploy
 ```
 
 Copy the deployed `StakeArena` address.
-
-#### 2. Deploy to Base Sepolia (For Entropy)
-
-```bash
-# Add Base Sepolia config to .env
-cat >> .env << EOF
-BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
-BASE_SEPOLIA_PRIVATE_KEY=your_private_key_here
-EOF
-
-# Deploy EntropyOracle contract
-pnpm run deploy:entropy
-```
-
-Copy the deployed `EntropyOracle` address.
 
 ### Server Configuration
 
@@ -228,13 +209,11 @@ Create `server/.env`:
 cd ../server
 cat > .env << EOF
 # Required
-SERVER_PRIVATE_KEY=0x...                    # Server wallet private key
-STAKE_ARENA_ADDRESS=0x...                   # StakeArena contract (Saga)
-
-# Optional (for Pyth Entropy)
-ENTROPY_ORACLE_ADDRESS=0x...                # EntropyOracle contract (Base Sepolia)
-BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
-SAGA_CHAINLET_RPC_URL=https://slither-2763767854157000-1.jsonrpc.sagarpc.io
+PRIVATE_KEY=0x...                           # Server wallet private key
+# Set one or both of these depending on which network(s) you deployed to:
+BASE_STAKE_ARENA_ADDRESS=0x...              # StakeArena contract on Base mainnet
+BASE_SEPOLIA_STAKE_ARENA_ADDRESS=0x...      # StakeArena contract on Base Sepolia
+BASE_RPC_URL=https://mainnet.base.org       # Use https://sepolia.base.org for Sepolia
 
 # Optional (for match finalization)
 ENABLE_BLOCKCHAIN=true
@@ -249,9 +228,11 @@ Create `client/.env`:
 cd ../client
 cat > .env << EOF
 VITE_BLOCKCHAIN_ENABLED=true
-VITE_STAKE_ARENA_ADDRESS=0x...              # StakeArena contract address
-VITE_SAGA_CHAINLET_RPC_URL=https://slither-2763767854157000-1.jsonrpc.sagarpc.io
-VITE_SAGA_CHAIN_ID=2763767854157000
+# Set one or both of these depending on which network(s) you want to support:
+VITE_BASE_STAKE_ARENA_ADDRESS=0x...         # StakeArena contract on Base mainnet
+VITE_BASE_SEPOLIA_STAKE_ARENA_ADDRESS=0x... # StakeArena contract on Base Sepolia
+VITE_BASE_RPC_URL=https://mainnet.base.org
+VITE_BASE_CHAIN_ID=8453
 EOF
 ```
 
@@ -275,43 +256,32 @@ pnpm run dev
 
 Now when you play:
 - Connect your MetaMask wallet
-- Stake SSS tokens to enter matches
+- Stake ETH to enter matches
 - Earn stakes from eliminated players
 - View your rank on the on-chain leaderboard
 
 ---
 
-## 🎲 How Pyth Entropy Works
+## 🎲 How Deterministic RNG Works
 
-### Cross-Chain Fair Randomness
+### Fair Randomness System
+
+The game uses deterministic random number generation for fair gameplay:
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  1. Server requests entropy from Base Sepolia    │
+│  1. Server generates entropy seed on match start │
 └────────────────┬─────────────────────────────────┘
                      │
                      ▼
         ┌────────────────────────────┐
-    │  2. Pyth Oracle reveals    │
-    │     random seed            │
-    │     (10-30 sec delay)      │
+    │  2. Seed is committed to   │
+    │     StakeArena (Base)      │
         └────────────┬───────────────┘
                      │
                      ▼
         ┌────────────────────────────┐
-    │  3. Server reads seed from │
-    │     EntropyOracle (Base)   │
-        └────────────┬───────────────┘
-                     │
-                     ▼
-        ┌────────────────────────────┐
-    │  4. Server commits hash to │
-    │     StakeArena (Saga)      │
-        └────────────┬───────────────┘
-                     │
-                     ▼
-        ┌────────────────────────────┐
-    │  5. Generate using RNG:    │
+    │  3. Generate using RNG:    │
     │     • Spawn positions      │
     │     • Snake colors         │
     │     • Pellet layout        │
@@ -328,8 +298,7 @@ Now when you play:
 
 ### Verification
 
-- **Seed Hash**: `StakeArena.entropySeedByMatch[matchId]` on Saga
-- **Request ID**: `EntropyOracle.entropyRequestIdByMatch[matchId]` on Base Sepolia
+- **Seed Hash**: `StakeArena.entropySeedByMatch[matchId]` on Base
 - **Fair Match Badge**: ✓ Shown in-game with match ID and entropy details
 
 ---
@@ -355,19 +324,15 @@ Now when you play:
 │       ├── Snake.ts        # Snake entity
 │       ├── Pellet.ts       # Pellet management
 │       ├── CollisionDetection.ts # Physics
-│       ├── BlockchainService.ts  # Saga Web3
-│       ├── EntropyBridgeService.ts # Pyth cross-chain
+│       ├── BlockchainService.ts  # Base Web3
 │       ├── DeterministicRNG.ts   # Seeded RNG
 │       └── Leaderboard.ts  # Rankings
 │
 ├── contracts/              # Smart contracts (Solidity)
 │   ├── contracts/
-│   │   ├── StakeArena.sol      # Main game (Saga)
-│   │   ├── EntropyOracle.sol   # Pyth oracle (Base)
-│   │   └── GameToken.sol       # ERC20 token
+│   │   └── StakeArena.sol      # Main game (Base)
 │   └── scripts/
-│       ├── deployStakeArena.ts # Deploy to Saga
-│       ├── deployEntropyOracle.ts # Deploy to Base
+│       ├── deployStakeArena.ts # Deploy to Base
 │       ├── updateServer.ts     # Authorize server
 │       └── getLeaderboard.ts   # Query rankings
 │
@@ -409,6 +374,30 @@ Open multiple browser tabs to [0xslither.vercel.app](https://0xslither.vercel.ap
 
 For local testing, use http://localhost:3000 instead.
 
+### Network Configuration (Base vs Base Sepolia)
+
+The game uses a **single network toggle** as the source of truth. To switch between Base mainnet and Base Sepolia:
+
+1. Open `client/src/networkConfig.ts`
+2. Find the `USE_BASE_MAINNET` constant at the top
+3. Set it to `true` for Base mainnet or `false` for Base Sepolia
+
+```typescript
+// ============================================================================
+// NETWORK TOGGLE - Change this to switch between Base Mainnet and Base Sepolia
+// This is the single source of truth for which network the game uses
+// ============================================================================
+const USE_BASE_MAINNET = true; // Set to false to use Base Sepolia
+```
+
+**Important:** 
+- This toggle determines which contract address is used (from your `.env` file)
+- The wallet will automatically switch users to the correct network
+- Users on the wrong network will be prompted to switch
+- Set the corresponding environment variable:
+  - Base mainnet: `VITE_BASE_STAKE_ARENA_ADDRESS`
+  - Base Sepolia: `VITE_BASE_SEPOLIA_STAKE_ARENA_ADDRESS`
+
 ### Configuration
 
 Edit `shared/constants.ts`:
@@ -446,12 +435,11 @@ PORT=9000 pnpm run server
 - **ethers.js v6** - Blockchain interactions
 
 ### Blockchain
-- **Saga Chainlet** - EVM L1 for game economy
-- **Base Sepolia** - L2 testnet for Pyth Entropy
+- **Base Mainnet** - Ethereum L2 for game economy
 - **Solidity 0.8.20** - Smart contracts
 - **Hardhat** - Development framework
 - **OpenZeppelin** - Secure contract libraries
-- **Pyth Entropy** - Verifiable randomness
+- **Deterministic RNG** - Fair randomness generation
 
 ---
 
@@ -459,10 +447,9 @@ PORT=9000 pnpm run server
 
 ### ✅ Completed
 - [x] Real-time multiplayer gameplay
-- [x] On-chain staking economy
-- [x] Pyth Entropy integration
-- [x] Cross-chain architecture
-- [x] Deterministic match replay
+- [x] On-chain staking economy (Base Mainnet)
+- [x] Deterministic RNG for fair randomness
+- [x] Match replay capability
 - [x] Leaderboard system
 - [x] Smooth camera and interpolation
 - [x] **Production deployment on Vercel**
@@ -489,10 +476,10 @@ PORT=9000 pnpm run server
 
 ### Blockchain Issues
 - ✅ Ensure MetaMask is installed and unlocked
-- ✅ Verify you're on Saga Chainlet network
-- ✅ Check you have enough SSS tokens
+- ✅ Verify you're on Base Mainnet network
+- ✅ Check you have enough ETH for transactions
 - ✅ Look for transaction errors in MetaMask
-- ✅ View contract on [Saga Explorer](https://slither-2763767854157000-1.sagaexplorer.io/)
+- ✅ View contract on [Basescan](https://basescan.org/)
 
 ### Performance Issues
 - ✅ Reduce `PELLET_COUNT` in `shared/constants.ts`
@@ -580,9 +567,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **ETHGlobal** - For the hackathon opportunity
-- **Saga** - For the dedicated chainlet infrastructure
+- **Base** - For the fast and affordable L2 infrastructure
 - **Fluence** - For decentralized compute hosting
-- **Pyth Network** - For Entropy randomness oracle
 - **Vercel** - For frontend hosting
 - **OpenZeppelin** - For secure contract libraries
 - **Slither.io** - Original game inspiration
@@ -593,8 +579,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **🎮 Play Game**: [0xslither.vercel.app](https://0xslither.vercel.app)
 - **Issues**: [GitHub Issues](https://github.com/yourusername/0xSlither/issues)
-- **Saga Explorer**: [View Transactions](https://slither-2763767854157000-1.sagaexplorer.io/txs)
-- **Base Sepolia Explorer**: [View Entropy Contract](https://sepolia.basescan.org/address/0x662371163C3797b66ab80dCB592761718537F492)
+- **Base Explorer**: [View Transactions on Basescan](https://basescan.org/)
 
 ---
 
@@ -602,7 +587,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ using TypeScript, Fluence CPU, and Blockchain**
 
-**Deployed on Vercel | Server on Fluence CPU | Contracts on Saga & Base**
+**Deployed on Vercel | Server on Fluence CPU | Contracts on Base**
 
 **[🎮 Play Now](https://0xslither.vercel.app)** | **[Report Bug](https://github.com/yourusername/0xSlither/issues)** | **[Request Feature](https://github.com/yourusername/0xSlither/issues)**
 

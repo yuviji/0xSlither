@@ -1,15 +1,20 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS;
+  // Support both Base mainnet and Base Sepolia
+  const baseStakeArenaAddress = process.env.BASE_STAKE_ARENA_ADDRESS;
+  const baseSepoliaStakeArenaAddress = process.env.BASE_SEPOLIA_STAKE_ARENA_ADDRESS;
+  const stakeArenaAddress = baseStakeArenaAddress || baseSepoliaStakeArenaAddress;
+  
   const serverAddress = process.env.SERVER_ADDRESS;
 
   if (!stakeArenaAddress || !serverAddress) {
-    console.error("Please set STAKE_ARENA_ADDRESS and SERVER_ADDRESS in .env");
+    console.error("Please set (BASE_STAKE_ARENA_ADDRESS or BASE_SEPOLIA_STAKE_ARENA_ADDRESS) and SERVER_ADDRESS in .env");
     process.exit(1);
   }
 
-  console.log("Updating authorized server...");
+  const networkName = baseStakeArenaAddress ? 'Base' : 'Base Sepolia';
+  console.log(`Updating authorized server on ${networkName}...`);
   console.log("StakeArena:", stakeArenaAddress);
   console.log("New Server:", serverAddress);
 

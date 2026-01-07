@@ -1,15 +1,13 @@
 {
   "name": "contracts",
   "version": "1.0.0",
-  "description": "0xSlither Smart Contracts on Saga Chainlet",
+  "description": "0xSlither Smart Contracts on Base",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.ts --network saga",
-    "update-server": "hardhat run scripts/updateServer.ts --network saga",
-    "mint": "hardhat run scripts/mintTokens.ts --network saga --",
-    "balance": "hardhat run scripts/checkBalance.ts --network saga --",
-    "leaderboard": "hardhat run scripts/getLeaderboard.ts --network saga"
+    "deploy": "hardhat run scripts/deployStakeArena.ts --network base",
+    "update-server": "hardhat run scripts/updateServer.ts --network base",
+    "leaderboard": "hardhat run scripts/getLeaderboard.ts --network base"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",

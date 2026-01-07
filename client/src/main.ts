@@ -4,12 +4,19 @@ import { InputHandler } from './InputHandler';
 import { UI } from './UI';
 import { WalletService } from './WalletService';
 import { TICK_INTERVAL, MessageType, TapOutMessage } from '@0xslither/shared';
+import { NETWORK_CONFIG, BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID } from './networkConfig';
 
 // WebSocket server URL (adjust for production)
 const WSS_URL = import.meta.env.VITE_WSS_URL;
 
-// Contract addresses (configure these after deployment)
-const STAKE_ARENA_ADDRESS = import.meta.env.VITE_STAKE_ARENA_ADDRESS as string;
+// Contract address - automatically selected based on NETWORK_CONFIG toggle
+const BASE_STAKE_ARENA_ADDRESS = import.meta.env.VITE_BASE_STAKE_ARENA_ADDRESS as string;
+const BASE_SEPOLIA_STAKE_ARENA_ADDRESS = import.meta.env.VITE_BASE_SEPOLIA_STAKE_ARENA_ADDRESS as string;
+
+// Select the correct address based on the network configuration toggle
+const STAKE_ARENA_ADDRESS = NETWORK_CONFIG.chainId === BASE_MAINNET_CHAIN_ID
+  ? BASE_STAKE_ARENA_ADDRESS
+  : BASE_SEPOLIA_STAKE_ARENA_ADDRESS;
 
 class GameClient {
   private game: Game;
@@ -26,7 +33,7 @@ class GameClient {
   private walletAddress: string | null = null;
   private hasDeposited = false; // Track if player has deposited to vault
   private lastPelletTokens: number = 0; // Track pellet tokens for UI updates
-  private readonly FIXED_DEPOSIT_AMOUNT = '1'; // Fixed 1 SSS deposit amount
+  private readonly FIXED_DEPOSIT_AMOUNT = '0.00005'; // Fixed 0.00005 ETH deposit amount
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -160,10 +167,10 @@ class GameClient {
       this.walletAddress = await this.wallet.connectWallet();
       
       if (this.walletAddress) {
-        // Initialize contracts if blockchain enabled
+        // Initialize contracts with the configured network's contract address
         if (STAKE_ARENA_ADDRESS) {
           this.wallet.initializeContracts(STAKE_ARENA_ADDRESS);
-          console.log('✅ Wallet connected and contracts initialized');
+          console.log(`✅ Wallet connected and contracts initialized for ${NETWORK_CONFIG.chainName}`);
         } else {
           console.log('✅ Wallet connected (blockchain features disabled)');
         }
@@ -191,7 +198,7 @@ class GameClient {
             console.warn('⚠️ Network changed! Checking if on correct network...');
             const isCorrect = await this.wallet?.isOnCorrectNetwork();
             if (!isCorrect) {
-              this.ui.showError('Wrong network! Please switch back to 0xSlither Saga Chainlet');
+              this.ui.showError(`Wrong network! Please switch to ${NETWORK_CONFIG.chainName}`);
             }
           }
         );
@@ -217,35 +224,39 @@ class GameClient {
       return;
     }
 
-    // Vault mode: deposit directly to server vault
-    if (STAKE_ARENA_ADDRESS) {
-      try {
-        console.log(`Depositing ${this.FIXED_DEPOSIT_AMOUNT} SSS to vault...`);
-        this.ui.showLoading(`Depositing ${this.FIXED_DEPOSIT_AMOUNT} SSS... Please sign the transaction in MetaMask.`);
-        
-        // Deposit to vault (no match ID needed)
-        await this.wallet!.depositToVault(this.FIXED_DEPOSIT_AMOUNT);
+    // Check if contracts are initialized
+    if (!this.wallet || !this.wallet.isContractsInitialized()) {
+      alert(`Blockchain features not available. Please ensure you are on ${NETWORK_CONFIG.chainName} network.`);
+      return;
+    }
 
-        console.log('✅ Successfully deposited to vault');
-        this.ui.hideLoading();
-        this.ui.setDeposited(); // Update UI to show deposited state
-        this.hasDeposited = true;
-        
-        // Update balance
-        const balance = await this.wallet!.getTokenBalance();
-        this.ui.updateTokenBalance(balance);
-      } catch (error: any) {
-        console.error('Error during deposit process:', error);
-        this.ui.hideLoading();
-        
-        // Check if user rejected the transaction
-        if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
-          alert('Transaction rejected. Please deposit to play.');
-        } else {
-          alert('Failed to deposit tokens. See console for details.');
-        }
-        return;
+    // Vault mode: deposit directly to server vault
+    try {
+      console.log(`Depositing ${this.FIXED_DEPOSIT_AMOUNT} ETH to vault...`);
+      this.ui.showLoading(`Depositing ${this.FIXED_DEPOSIT_AMOUNT} ETH... Please sign the transaction in MetaMask.`);
+      
+      // Deposit to vault (no match ID needed)
+      await this.wallet!.depositToVault(this.FIXED_DEPOSIT_AMOUNT);
+
+      console.log('✅ Successfully deposited to vault');
+      this.ui.hideLoading();
+      this.ui.setDeposited(); // Update UI to show deposited state
+      this.hasDeposited = true;
+      
+      // Update balance
+      const balance = await this.wallet!.getTokenBalance();
+      this.ui.updateTokenBalance(balance);
+    } catch (error: any) {
+      console.error('Error during deposit process:', error);
+      this.ui.hideLoading();
+      
+      // Check if user rejected the transaction
+      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+        alert('Transaction rejected. Please deposit to play.');
+      } else {
+        alert('Failed to deposit tokens. See console for details.');
       }
+      return;
     }
   }
 
@@ -331,7 +342,7 @@ class GameClient {
 
     // VAULT MODE: Server handles pellet token payout via direct transfer
     // No on-chain transaction needed from client
-    this.ui.showLoading(`Tapping out... Server will pay out ${pelletTokens.toFixed(2)} SSS in pellet tokens.`);
+    this.ui.showLoading(`Tapping out... Server will pay out ${pelletTokens.toFixed(2)} ETH in pellet tokens.`);
     
     // Wait a moment for server to process
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -429,8 +440,9 @@ console.log('%c0xSlither Game Started!', 'color: #9B59B6; font-size: 20px; font-
 console.log('Controls: Move your mouse to control your snake');
 console.log('⚠️  Wallet connection required to play');
 if (STAKE_ARENA_ADDRESS) {
-  console.log('🔗 Blockchain features enabled (Native SSS token)');
+  console.log(`🔗 Blockchain features enabled on ${NETWORK_CONFIG.chainName} (Native ETH)`);
+  console.log(`   Contract: ${STAKE_ARENA_ADDRESS}`);
 } else {
-  console.log('ℹ️  Set VITE_STAKE_ARENA_ADDRESS to enable blockchain features');
+  console.log(`ℹ️  Set ${NETWORK_CONFIG.chainId === BASE_MAINNET_CHAIN_ID ? 'VITE_BASE_STAKE_ARENA_ADDRESS' : 'VITE_BASE_SEPOLIA_STAKE_ARENA_ADDRESS'} to enable blockchain features`);
 }
 

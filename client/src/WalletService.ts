@@ -1,5 +1,10 @@
 import { ethers } from 'ethers';
-import { NETWORK_CONFIG, getAddChainParameters, getSwitchChainParameters } from './networkConfig';
+import { 
+  NETWORK_CONFIG,
+  getAddChainParameters, 
+  getSwitchChainParameters,
+  isCorrectNetwork
+} from './networkConfig';
 
 // Contract ABIs (minimal, only what we need)
 const STAKE_ARENA_ABI = [
@@ -74,7 +79,7 @@ export class WalletService {
   }
 
   /**
-   * Ensures the wallet is connected to the correct network
+   * Ensures the wallet is connected to the configured network
    * Automatically switches or adds the network if needed
    */
   private async ensureCorrectNetwork(): Promise<void> {
@@ -87,7 +92,7 @@ export class WalletService {
       const network = await this.provider.getNetwork();
       console.log(`📡 Current network: Chain ID ${network.chainId}`);
       
-      if (network.chainId !== NETWORK_CONFIG.chainId) {
+      if (!isCorrectNetwork(network.chainId)) {
         console.log(`🔄 Wrong network detected. Switching to ${NETWORK_CONFIG.chainName}...`);
         await this.switchToCorrectNetwork();
         
@@ -104,7 +109,7 @@ export class WalletService {
   }
 
   /**
-   * Attempts to switch to the correct network
+   * Attempts to switch to the configured network
    * If the network is not added to the wallet, it will be added automatically
    */
   private async switchToCorrectNetwork(): Promise<void> {
@@ -146,7 +151,7 @@ export class WalletService {
   }
 
   /**
-   * Adds the network to the user's wallet
+   * Adds the configured network to the user's wallet
    */
   private async addNetworkToWallet(): Promise<void> {
     if (!this.provider) {
@@ -221,24 +226,24 @@ export class WalletService {
     
     console.log('Contracts initialized');
     console.log('StakeArena:', stakeArenaAddress);
-    console.log('Using native SSS token (no approval needed)');
+    console.log('Using native ETH (no approval needed)');
   }
 
   async getTokenBalance(): Promise<string> {
     if (!this.address || !this.provider) return '0';
     
     try {
-      // Get native SSS balance
+      // Get native ETH balance
       const balance: bigint = await this.provider.getBalance(this.address);
       return Math.floor(parseFloat(ethers.formatEther(balance))).toString();
     } catch (error) {
-      console.error('Error getting SSS balance:', error);
+      console.error('Error getting ETH balance:', error);
       return '0';
     }
   }
 
   /**
-   * Deposit SSS to the server vault for continuous gameplay
+   * Deposit ETH to the server vault for continuous gameplay
    * This replaces the per-match enterMatch flow
    */
   async depositToVault(amount: string): Promise<boolean> {
@@ -247,12 +252,12 @@ export class WalletService {
       throw new Error('StakeArena not initialized');
     }
     
-    console.log(`Depositing ${amount} SSS to vault...`);
+    console.log(`Depositing ${amount} ETH to vault...`);
     
     const amountWei = ethers.parseEther(amount);
     console.log('Amount in wei:', amountWei);
     
-    // Send SSS directly to vault (no match ID needed)
+    // Send ETH directly to vault (no match ID needed)
     const tx = await this.stakeArena.depositToVault({ value: amountWei });
     console.log('Transaction:', tx);
     const receipt = await tx.wait(2); // Wait for 2 confirmations for better finality
@@ -280,8 +285,8 @@ export class WalletService {
     const matchIdBytes32 = ethers.id(matchId);
     console.log('Amount in wei:', amountWei);
     console.log('Match ID as bytes32:', matchIdBytes32);
-    console.log(`Entering match ${matchId} with ${amount} SSS...`);
-    // Send SSS with the transaction (no approval needed!)
+    console.log(`Entering match ${matchId} with ${amount} ETH...`);
+    // Send ETH with the transaction (no approval needed!)
     const tx = await this.stakeArena.enterMatch(matchIdBytes32, { value: amountWei });
     console.log('Transaction:', tx);
     const receipt = await tx.wait(2); // Wait for 2 confirmations for better finality
@@ -421,9 +426,8 @@ export class WalletService {
         return;
       }
       
-      if (chainIdBigInt !== NETWORK_CONFIG.chainId) {
-        console.warn(`⚠️  You are no longer on ${NETWORK_CONFIG.chainName}`);
-        console.warn('Please switch back to continue playing');
+      if (!isCorrectNetwork(chainIdBigInt)) {
+        console.warn(`⚠️  Wrong network! Please switch to ${NETWORK_CONFIG.chainName}`);
         if (onNetworkChange) onNetworkChange();
       } else {
         console.log(`✅ Back on ${NETWORK_CONFIG.chainName}`);
@@ -455,11 +459,18 @@ export class WalletService {
   }
 
   /**
-   * Check if the current network is correct
+   * Check if the current network matches the configured network
    */
   async isOnCorrectNetwork(): Promise<boolean> {
     const network = await this.getCurrentNetwork();
-    return network ? network.chainId === NETWORK_CONFIG.chainId : false;
+    return network ? isCorrectNetwork(network.chainId) : false;
+  }
+
+  /**
+   * Check if contracts are initialized
+   */
+  isContractsInitialized(): boolean {
+    return this.stakeArena !== null;
   }
 }
 

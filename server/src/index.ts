@@ -13,6 +13,7 @@ import {
   isInputMessage,
   isPingMessage,
   isTapOutMessage,
+  DEATH_TAX_RATE,
 } from '@0xslither/shared';
 
 dotenv.config();
@@ -36,7 +37,7 @@ class WebSocketGameServer {
   private players: Map<WebSocket, Player> = new Map();
   private nextPlayerId = 0;
   private deltaCompressor: DeltaCompressor = new DeltaCompressor();
-  private readonly FIXED_STAKE_AMOUNT = 1; // Fixed 1 SSS stake per player
+  private readonly FIXED_STAKE_AMOUNT = 0.00005; // Fixed 0.00005 ETH stake per player
 
   constructor(port: number) {
     this.gameServer = new GameServer();
@@ -44,15 +45,30 @@ class WebSocketGameServer {
     
     // Initialize blockchain
     try {
-      const rpcUrl = process.env.SAGA_RPC_URL as string;
       const privateKey = process.env.SERVER_PRIVATE_KEY as string;
-      const stakeArenaAddress = process.env.STAKE_ARENA_ADDRESS as string;
+      
+      // Network toggle - set USE_BASE_MAINNET=true for mainnet, false/unset for Sepolia
+      const useMainnet = process.env.USE_BASE_MAINNET === 'true';
+      
+      // Select config based on toggle
+      const rpcUrl = useMainnet
+        ? process.env.BASE_RPC_URL as string
+        : process.env.BASE_SEPOLIA_RPC_URL as string;
+      const stakeArenaAddress = useMainnet
+        ? process.env.BASE_STAKE_ARENA_ADDRESS as string
+        : process.env.BASE_SEPOLIA_STAKE_ARENA_ADDRESS as string;
+      const explorerUrl = useMainnet 
+        ? process.env.BASE_EXPLORER_URL as string
+        : process.env.BASE_SEPOLIA_EXPLORER_URL as string;
+      const networkName = useMainnet ? 'Base' : 'Base Sepolia';
 
-      if (!privateKey || !stakeArenaAddress) {
-        console.warn('⚠️  Blockchain integration disabled: Missing SERVER_PRIVATE_KEY or STAKE_ARENA_ADDRESS');
+      if (!privateKey || !stakeArenaAddress || !explorerUrl || !rpcUrl) {
+        console.warn('⚠️  Blockchain integration disabled: Missing configuration');
+        console.warn(`    Network: ${networkName} (USE_BASE_MAINNET=${useMainnet})`);
+        console.warn('    Required: SERVER_PRIVATE_KEY, RPC URL, STAKE_ARENA_ADDRESS, EXPLORER_URL');
       } else {
-        this.blockchain = new BlockchainService(rpcUrl, privateKey, stakeArenaAddress);
-        console.log('✅ Blockchain integration enabled (Native SSS)');
+        this.blockchain = new BlockchainService(rpcUrl, privateKey, stakeArenaAddress, explorerUrl);
+        console.log(`✅ Blockchain integration enabled (Native ETH on ${networkName})`);
         console.log('🏦 Using server vault model for continuous gameplay');
         console.log(`📝 Permanent Match ID: ${this.gameServer.getMatchId()}`);
         console.log(`📝 Match ID (bytes32): ${this.blockchain.generateMatchId(this.gameServer.getMatchId())}`);
@@ -123,7 +139,7 @@ class WebSocketGameServer {
     // VAULT MODE: Verify player has deposited to vault (optional check)
     // In production, you may want to enforce this more strictly
     if (this.blockchain) {
-      const hasDeposited = await this.blockchain.verifyVaultDeposit(address, this.FIXED_STAKE_AMOUNT.toString());
+      const hasDeposited = await this.blockchain.verifyVaultDeposit(address, this.FIXED_STAKE_AMOUNT.toFixed(2));
       if (!hasDeposited) {
         console.warn(`⚠️  Player ${address.slice(0, 8)} joining without verified vault deposit`);
         // For now, allow them to join anyway (server can enforce deposits client-side)
@@ -186,23 +202,23 @@ class WebSocketGameServer {
     const pelletTokens = snake.getPelletTokens();
     const finalScore = snake.getScore();
     
-    // Remove snake from game immediately
+    // Remove snake from game and clear stake tracking
     // Use immediate removal since this is between ticks (during message handling)
     this.gameServer.removeSnake(player.snakeId, true);
+    this.gameServer.clearPlayerStake(snake.address);
     player.snakeId = null;
     
-    // VAULT MODE: Transfer pellet tokens only (stakes already distributed via kills)
-    // Player keeps any stake rewards they earned from kills (already in their wallet)
+    // VAULT MODE: Return stake + pellet tokens on safe tap-out
     if (this.blockchain && snake.address) {
-      // Only settle pellet tokens - stake rewards were transferred immediately on kills
-      await this.blockchain.settlePelletTokens(snake.address, pelletTokens);
-      console.log(`💰 Tap-out payout: ${pelletTokens.toFixed(2)} SSS (pellet tokens) to ${snake.address.slice(0, 8)}`);
+      const totalPayout = this.FIXED_STAKE_AMOUNT + pelletTokens;
+      await this.blockchain.settlePelletTokens(snake.address, totalPayout);
+      console.log(`💰 Tap-out payout: ${this.FIXED_STAKE_AMOUNT} ETH (stake) + ${pelletTokens.toFixed(6)} ETH (pellets) = ${totalPayout.toFixed(6)} ETH to ${snake.address.slice(0, 8)}`);
     }
 
-    // Send success message with pellet token amount
+    // Send success message with total payout amount
     const tapOutMsg: TapOutSuccessMessage = {
       type: MessageType.TAPOUT_SUCCESS,
-      amountWithdrawn: pelletTokens, // Only pellet tokens, not stake
+      amountWithdrawn: this.FIXED_STAKE_AMOUNT + pelletTokens,
     };
     this.sendMessage(player.ws, tapOutMsg);
   }
@@ -223,6 +239,11 @@ class WebSocketGameServer {
         const pelletTokens = snake.getPelletTokens();
         console.log(`Player ${player.id} disconnected with active snake (score: ${snakeScore}, pellet tokens: ${pelletTokens.toFixed(2)})`);
         
+        // Apply death tax - contribute to regeneration pool
+        const deathTax = pelletTokens * DEATH_TAX_RATE;
+        this.gameServer.addToRegenerationPool(deathTax);
+        console.log(`💀 Disconnect death tax: ${deathTax.toFixed(4)} ETH added to regeneration pool`);
+        
         // CRITICAL: Immediately kill the snake to prevent other players from eating it
         // while we're doing async blockchain operations
         snake.kill();
@@ -232,7 +253,7 @@ class WebSocketGameServer {
           // - Server keeps the deposit (already in vault)
           // - Pellet tokens are lost (not paid out)
           // - Only report death for leaderboard
-          console.log(`💀 Player ${snake.address.slice(0, 8)} disconnected - loses deposit and pellet tokens (${pelletTokens.toFixed(2)} SSS)`);
+          console.log(`💀 Player ${snake.address.slice(0, 8)} disconnected - loses deposit and pellet tokens (${pelletTokens.toFixed(2)} ETH)`);
           await this.blockchain.reportSelfDeath(this.gameServer.getMatchId(), snake.address, snakeScore);
           
           // NO pellet token payout on disconnect - server keeps everything

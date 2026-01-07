@@ -27,6 +27,12 @@ export const PELLET_COLORS = [
   '#F8B739', '#52B788'
 ];
 
+// Pellet regeneration settings
+export const PELLET_RESPAWN_TIME_MS = 45000; // 45 seconds after consumption
+export const DEATH_TAX_RATE = 0.5; // 50% of dead player's pellet tokens go to regen pool
+export const INITIAL_REGEN_POOL_ETH = 0.0001; // 2x stake - seeds initial pellet values
+export const BASE_PELLET_TOKEN_VALUE = 0.0000001; // ~0.000005 ETH for 50 pellets (~10% of stake)
+
 // Collision detection
 export const COLLISION_DISTANCE = SNAKE_HEAD_RADIUS + SNAKE_SEGMENT_RADIUS;
 

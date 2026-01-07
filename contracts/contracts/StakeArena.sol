@@ -3,12 +3,17 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@pythnetwork/entropy-sdk-solidity/IEntropyV2.sol";
+import "@pythnetwork/entropy-sdk-solidity/IEntropyConsumer.sol";
 
 /**
  * @title StakeArena
- * @dev Main game contract using native SSS token for staking
+ * @dev Unified game contract with Pyth Entropy integration
+ * Uses native ETH for staking on Base Mainnet
  */
-contract StakeArena is Ownable, ReentrancyGuard {
+contract StakeArena is IEntropyConsumer, Ownable, ReentrancyGuard {
+    IEntropyV2 public entropy;
+    address public entropyProvider;
     address public authorizedServer;
 
     // Match state
@@ -20,14 +25,38 @@ contract StakeArena is Ownable, ReentrancyGuard {
         bool finalized;
     }
 
+    // Event types for batched reporting
+    enum EventType {
+        EAT,
+        DEATH
+    }
+
+    // Stat event structure for batched reporting
+    struct StatEvent {
+        EventType eventType;
+        address player1;
+        address player2;
+        uint256 score;
+    }
+
+    // Position structure for spawn verification
+    struct Position {
+        uint256 x;
+        uint256 y;
+    }
+
     // Player state per match
     mapping(bytes32 => mapping(address => uint256)) public stakeBalance;
     mapping(bytes32 => mapping(address => bool)) public activeInMatch;
     
     // Match data
     mapping(bytes32 => MatchSummary) public matches;
-    mapping(bytes32 => bytes32) public matchEntropyCommit;
-    mapping(bytes32 => bytes32) public entropySeedByMatch; // matchId => keccak256(actualSeed)
+    
+    // Entropy management
+    mapping(bytes32 => uint64) public entropyRequestIdByMatch; // matchId => Pyth sequence number
+    mapping(bytes32 => bytes32) public entropySeedByMatch; // matchId => revealed seed
+    mapping(uint64 => bytes32) private sequenceToMatchId; // for callback routing
+    mapping(bytes32 => address[]) private matchPlayers; // for spawn verification
     
     // Leaderboard
     mapping(address => uint256) public bestScore;
@@ -39,6 +68,11 @@ contract StakeArena is Ownable, ReentrancyGuard {
     
     LeaderboardEntry[] public leaderboard;
     uint256 public constant MAX_LEADERBOARD_SIZE = 10;
+
+    // Constants for spawn verification (match TypeScript game logic)
+    uint256 public constant WORLD_WIDTH = 5000;
+    uint256 public constant WORLD_HEIGHT = 5000;
+    uint256 public constant MIN_SPAWN_DISTANCE = 200;
 
     // Events
     event DepositedToVault(address indexed player, uint256 amount, uint256 timestamp);
@@ -59,23 +93,43 @@ contract StakeArena is Ownable, ReentrancyGuard {
     event TappedOut(bytes32 indexed matchId, address indexed player, uint256 amountWithdrawn);
     event SelfDeathReported(bytes32 indexed matchId, address indexed player, uint256 score, uint256 timestamp);
     event SelfDeath(bytes32 indexed matchId, address indexed player, uint256 amountToServer, uint256 timestamp);
-    event EntropyCommitted(bytes32 indexed matchId, bytes32 entropyRequestId);
     event MatchFinalized(bytes32 indexed matchId, address indexed winner, uint256 timestamp);
     event BestScoreUpdated(address indexed player, uint256 newScore);
     event AuthorizedServerUpdated(address indexed newServer);
+    event BatchStatsReported(bytes32 indexed matchId, uint256 eventCount, uint256 timestamp);
+    event EntropyRequested(bytes32 indexed matchId, uint64 requestId);
+    event EntropyStored(bytes32 indexed matchId, bytes32 seed);
+    event PlayerJoined(bytes32 indexed matchId, address indexed player);
+
+    error InsufficientFee();
+    error OnlyAuthorizedServer();
+    error EntropyAlreadyRequested();
+    error InvalidMatchId();
 
     modifier onlyAuthorizedServer() {
-        require(msg.sender == authorizedServer, "Only authorized server");
+        if (msg.sender != authorizedServer) revert OnlyAuthorizedServer();
         _;
     }
 
-    constructor(address _authorizedServer) Ownable(msg.sender) {
+    /**
+     * @dev Constructor
+     * @param _authorizedServer Address of the game server wallet
+     * @param _entropy Address of Pyth Entropy contract on Base
+     */
+    constructor(
+        address _authorizedServer,
+        address _entropy
+    ) Ownable(msg.sender) {
         require(_authorizedServer != address(0), "Invalid server address");
+        require(_entropy != address(0), "Invalid entropy address");
+        
         authorizedServer = _authorizedServer;
+        entropy = IEntropyV2(_entropy);
+        entropyProvider = entropy.getDefaultProvider();
     }
 
     /**
-     * @dev Player deposits native SSS to server vault for continuous gameplay
+     * @dev Player deposits native ETH to server vault for continuous gameplay
      * This replaces the per-match enterMatch flow for continuous matches
      */
     function depositToVault() external payable nonReentrant {
@@ -89,7 +143,271 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Player stakes native SSS to enter a match
+     * @dev Request entropy for a match from Pyth
+     * @param matchId Unique match identifier
+     */
+    function requestMatchEntropy(bytes32 matchId) external payable onlyAuthorizedServer {
+        if (matchId == bytes32(0)) revert InvalidMatchId();
+        if (entropyRequestIdByMatch[matchId] != 0) revert EntropyAlreadyRequested();
+
+        // Get the fee required by Pyth Entropy
+        uint256 fee = entropy.getFeeV2();
+        if (msg.value < fee) revert InsufficientFee();
+
+        // Request random number from Pyth Entropy
+        uint64 sequenceNumber = entropy.requestV2{value: fee}();
+
+        // Store mappings for callback routing
+        entropyRequestIdByMatch[matchId] = sequenceNumber;
+        sequenceToMatchId[sequenceNumber] = matchId;
+
+        // Initialize match
+        if (matches[matchId].startTime == 0) {
+            matches[matchId].startTime = block.timestamp;
+        }
+
+        emit EntropyRequested(matchId, sequenceNumber);
+
+        // Refund excess payment
+        if (msg.value > fee) {
+            (bool success, ) = payable(msg.sender).call{value: msg.value - fee}("");
+            require(success, "Refund failed");
+        }
+    }
+
+    /**
+     * @dev Callback function called by Pyth Entropy contract
+     * This is called automatically when the random number is revealed
+     * @param sequenceNumber The sequence number of the request
+     * @param randomNumber The revealed random number
+     */
+    function entropyCallback(
+        uint64 sequenceNumber,
+        address, // provider (unused)
+        bytes32 randomNumber
+    ) internal override {
+        bytes32 matchId = sequenceToMatchId[sequenceNumber];
+        require(matchId != bytes32(0), "Unknown sequence number");
+
+        // Store the revealed seed
+        entropySeedByMatch[matchId] = randomNumber;
+
+        emit EntropyStored(matchId, randomNumber);
+    }
+
+    /**
+     * @dev Get the entropy contract address (required by IEntropyConsumer)
+     */
+    function getEntropy() internal view override returns (address) {
+        return address(entropy);
+    }
+
+    /**
+     * @dev Get the revealed seed for a match
+     * @param matchId Match identifier
+     * @return seed The revealed random seed (bytes32(0) if not yet available)
+     */
+    function getMatchSeed(bytes32 matchId) external view returns (bytes32) {
+        return entropySeedByMatch[matchId];
+    }
+
+    /**
+     * @dev Check if entropy has been requested for a match
+     * @param matchId Match identifier
+     * @return True if entropy has been requested
+     */
+    function hasRequestedEntropy(bytes32 matchId) external view returns (bool) {
+        return entropyRequestIdByMatch[matchId] != 0;
+    }
+
+    /**
+     * @dev Check if entropy seed is available for a match
+     * @param matchId Match identifier
+     * @return True if seed is available
+     */
+    function isSeedAvailable(bytes32 matchId) external view returns (bool) {
+        return entropySeedByMatch[matchId] != bytes32(0);
+    }
+
+    /**
+     * @dev Get the current Entropy fee
+     * @return Fee in wei
+     */
+    function getEntropyFee() external view returns (uint256) {
+        return entropy.getFeeV2();
+    }
+
+    /**
+     * @dev Register player joining match (for spawn verification)
+     * @param matchId Match identifier
+     * @param player Player address
+     */
+    function registerPlayerJoin(bytes32 matchId, address player) external onlyAuthorizedServer {
+        matchPlayers[matchId].push(player);
+        emit PlayerJoined(matchId, player);
+    }
+
+    /**
+     * @dev Get players who joined a match
+     * @param matchId Match identifier
+     * @return Array of player addresses
+     */
+    function getMatchPlayers(bytes32 matchId) external view returns (address[] memory) {
+        return matchPlayers[matchId];
+    }
+
+    /**
+     * @dev Verify spawn position was generated correctly from seed
+     * @param matchId Match identifier
+     * @param player Player address
+     * @param claimedX Claimed X position
+     * @param claimedY Claimed Y position
+     * @return True if spawn position is valid
+     */
+    function verifySpawnPosition(
+        bytes32 matchId,
+        address player,
+        uint256 claimedX,
+        uint256 claimedY
+    ) external view returns (bool) {
+        bytes32 seed = entropySeedByMatch[matchId];
+        if (seed == bytes32(0)) return false;
+
+        address[] memory players = matchPlayers[matchId];
+        
+        // Find player index
+        uint256 playerIndex = type(uint256).max;
+        for (uint256 i = 0; i < players.length; i++) {
+            if (players[i] == player) {
+                playerIndex = i;
+                break;
+            }
+        }
+        
+        if (playerIndex == type(uint256).max) return false;
+
+        // Deterministically compute spawn position from seed
+        (uint256 actualX, uint256 actualY) = _computeSpawnPosition(seed, playerIndex);
+
+        return (claimedX == actualX && claimedY == actualY);
+    }
+
+    /**
+     * @dev Verify initial pellet positions
+     * @param matchId Match identifier
+     * @param pelletCount Number of pellets
+     * @return positions Array of pellet positions
+     */
+    function verifyPelletPositions(
+        bytes32 matchId,
+        uint256 pelletCount
+    ) external view returns (Position[] memory positions) {
+        bytes32 seed = entropySeedByMatch[matchId];
+        require(seed != bytes32(0), "Seed not available");
+
+        positions = new Position[](pelletCount);
+        
+        for (uint256 i = 0; i < pelletCount; i++) {
+            // Derive pellet-specific seed
+            bytes32 pelletSeed = keccak256(abi.encodePacked(seed, "pellet", i));
+            positions[i] = Position({
+                x: uint256(pelletSeed) % WORLD_WIDTH,
+                y: uint256(keccak256(abi.encodePacked(pelletSeed, "y"))) % WORLD_HEIGHT
+            });
+        }
+
+        return positions;
+    }
+
+    /**
+     * @dev Internal function to compute spawn position
+     * @param seed Entropy seed
+     * @param playerIndex Player index in match
+     * @return x X coordinate
+     * @return y Y coordinate
+     */
+    function _computeSpawnPosition(bytes32 seed, uint256 playerIndex) 
+        internal 
+        pure 
+        returns (uint256 x, uint256 y) 
+    {
+        // Generate deterministic spawn from seed and player index
+        bytes32 playerSeed = keccak256(abi.encodePacked(seed, playerIndex));
+        
+        x = uint256(playerSeed) % WORLD_WIDTH;
+        y = uint256(keccak256(abi.encodePacked(playerSeed, "y"))) % WORLD_HEIGHT;
+    }
+
+    /**
+     * @dev Server reports batched game statistics
+     * @param matchId Match identifier
+     * @param events Array of stat events (eats and deaths)
+     */
+    function reportBatchedStats(
+        bytes32 matchId,
+        StatEvent[] calldata events
+    ) external onlyAuthorizedServer {
+        require(events.length > 0, "No events");
+        require(events.length <= 100, "Too many events"); // Gas limit protection
+
+        for (uint256 i = 0; i < events.length; i++) {
+            StatEvent calldata evt = events[i];
+
+            if (evt.eventType == EventType.EAT) {
+                require(evt.player1 != evt.player2, "Cannot eat self");
+                emit EatReported(matchId, evt.player1, evt.player2, block.timestamp);
+            } else if (evt.eventType == EventType.DEATH) {
+                // Update best score if higher
+                if (evt.score > bestScore[evt.player1]) {
+                    bestScore[evt.player1] = evt.score;
+                    _updateLeaderboard(evt.player1, evt.score);
+                    emit BestScoreUpdated(evt.player1, evt.score);
+                }
+                emit SelfDeathReported(matchId, evt.player1, evt.score, block.timestamp);
+            }
+        }
+
+        emit BatchStatsReported(matchId, events.length, block.timestamp);
+    }
+
+    /**
+     * @dev Server reports that one player ate another (individual, for immediate updates)
+     * @param matchId Match identifier
+     * @param eater Address of the player who ate
+     * @param eaten Address of the player who was eaten
+     */
+    function reportEat(
+        bytes32 matchId,
+        address eater,
+        address eaten
+    ) external onlyAuthorizedServer {
+        require(eater != eaten, "Cannot eat self");
+        emit EatReported(matchId, eater, eaten, block.timestamp);
+    }
+
+    /**
+     * @dev Server reports that a player died (individual, for immediate updates)
+     * @param matchId Match identifier
+     * @param player Address of the player who died
+     * @param score Player's final score
+     */
+    function reportSelfDeath(
+        bytes32 matchId,
+        address player,
+        uint256 score
+    ) external onlyAuthorizedServer {
+        // Update best score if this score is higher
+        if (score > bestScore[player]) {
+            bestScore[player] = score;
+            _updateLeaderboard(player, score);
+            emit BestScoreUpdated(player, score);
+        }
+
+        emit SelfDeathReported(matchId, player, score, block.timestamp);
+    }
+
+    /**
+     * @dev Player stakes native ETH to enter a match
      * @param matchId Unique match identifier
      * @notice DEPRECATED: Use depositToVault() for continuous matches
      */
@@ -108,24 +426,6 @@ contract StakeArena is Ownable, ReentrancyGuard {
         matches[matchId].totalStaked += msg.value;
 
         emit Entered(matchId, msg.sender, msg.value);
-    }
-
-    /**
-     * @dev Server reports that one player ate another (stats/leaderboard only)
-     * In continuous vault mode, stake transfers happen off-chain via server wallet
-     * @param matchId Match identifier
-     * @param eater Address of the player who ate
-     * @param eaten Address of the player who was eaten
-     */
-    function reportEat(
-        bytes32 matchId,
-        address eater,
-        address eaten
-    ) external onlyAuthorizedServer {
-        require(eater != eaten, "Cannot eat self");
-        
-        // Just emit event for tracking - no on-chain transfers in vault mode
-        emit EatReported(matchId, eater, eaten, block.timestamp);
     }
 
     /**
@@ -153,29 +453,6 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Server reports that a player died from self-inflicted causes
-     * (eating self, wall collision, disconnect, etc.) - updates leaderboard only
-     * In continuous vault mode, stakes are already in server wallet
-     * @param matchId Match identifier
-     * @param player Address of the player who died
-     * @param score Player's final score in the match
-     */
-    function reportSelfDeath(
-        bytes32 matchId,
-        address player,
-        uint256 score
-    ) external onlyAuthorizedServer {
-        // Update best score if this score is higher
-        if (score > bestScore[player]) {
-            bestScore[player] = score;
-            _updateLeaderboard(player, score);
-            emit BestScoreUpdated(player, score);
-        }
-
-        emit SelfDeathReported(matchId, player, score, block.timestamp);
-    }
-
-    /**
      * @dev Legacy function for match-based gameplay with on-chain stake transfers
      * @notice DEPRECATED: Use reportSelfDeath() for continuous matches (vault mode)
      */
@@ -200,7 +477,7 @@ contract StakeArena is Ownable, ReentrancyGuard {
             emit BestScoreUpdated(player, score);
         }
 
-        // Send SSS to server wallet
+        // Send ETH to server wallet
         (bool success, ) = payable(authorizedServer).call{value: stakeAmount}("");
         require(success, "Transfer to server failed");
 
@@ -230,31 +507,11 @@ contract StakeArena is Ownable, ReentrancyGuard {
             emit BestScoreUpdated(msg.sender, score);
         }
 
-        // Send SSS back to player
+        // Send ETH back to player
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
         require(success, "Transfer failed");
 
         emit TappedOut(matchId, msg.sender, withdrawAmount);
-    }
-
-    /**
-     * @dev Server commits entropy seed for match (Pyth integration)
-     * @param matchId Match identifier (can be permanent ID for continuous matches)
-     * @param entropyRequestId Entropy request identifier from Base Sepolia
-     * @param seedHash keccak256 hash of the actual seed for verification
-     */
-    function commitEntropy(bytes32 matchId, bytes32 entropyRequestId, bytes32 seedHash) 
-        external 
-        onlyAuthorizedServer 
-    {
-        require(seedHash != bytes32(0), "Invalid seed hash");
-        
-        // Allow re-committing entropy for continuous matches (e.g., on server restart)
-        // In continuous mode, we may update entropy periodically
-        
-        matchEntropyCommit[matchId] = entropyRequestId;
-        entropySeedByMatch[matchId] = seedHash;
-        emit EntropyCommitted(matchId, entropyRequestId);
     }
 
     /**
@@ -305,13 +562,13 @@ contract StakeArena is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Allow contract to receive SSS
+     * @dev Allow contract to receive ETH
      */
     receive() external payable {}
 
     /**
      * @dev Withdraw contract balance to owner
-     * Allows owner to withdraw accumulated SSS from self-deaths and other sources
+     * Allows owner to withdraw accumulated ETH from self-deaths and other sources
      */
     function withdrawBalance() external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
@@ -424,4 +681,3 @@ contract StakeArena is Ownable, ReentrancyGuard {
         return matches[matchId];
     }
 }
-
