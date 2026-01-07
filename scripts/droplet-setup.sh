@@ -48,7 +48,7 @@ cd /opt/0xSlither
 # 7. Create server/.env file
 echo -e "${YELLOW}[7/7] Setting up environment variables...${NC}"
 cat > /opt/0xSlither/server/.env << 'ENVEOF'
-USE_BASE_MAINNET=true
+USE_BASE_MAINNET=false
 PORT=8080
 SERVER_PRIVATE_KEY=YOUR_SERVER_PRIVATE_KEY_HERE
 BASE_STAKE_ARENA_ADDRESS=0x276A6A0589A2D64EaD0E8F878cBE9F9C81642634
@@ -75,7 +75,7 @@ read -p "Press Enter after you've added your private key..."
 echo -e "${YELLOW}Creating client environment...${NC}"
 cat > /opt/0xSlither/client/.env << 'ENVEOF'
 VITE_WSS_URL=wss://0xslither.yuvrajlakhotia.me/ws
-VITE_USE_BASE_MAINNET=true
+VITE_USE_BASE_MAINNET=false
 VITE_BASE_STAKE_ARENA_ADDRESS=0x276A6A0589A2D64EaD0E8F878cBE9F9C81642634
 VITE_BASE_RPC_URL=https://mainnet.base.org
 VITE_BASE_EXPLORER_URL=https://basescan.org
